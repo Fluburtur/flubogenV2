@@ -1,0 +1,241 @@
+html, body {
+	background: white;
+	height: 100%;
+}
+
+
+input, button {
+    min-height: 26px;
+    line-height: 1;
+}
+
+align[wide]{
+	margin-top: 20px;
+}
+
+[palette] div {
+	width: 100px;
+	height: 50px;
+	font-weight: bolder;
+	/*
+	border: 1px solid black;
+	-webkit-text-stroke: 1px black;
+	*/
+	overflow: hidden;
+	float: left;
+}
+
+[block] {
+	display: block;
+}
+
+[red] {
+	color: red;
+}
+
+[navigation] {
+	width: 100%;
+	display: flex;
+	flex-direction: row;
+}
+
+[navigation] div {
+	width: 100%;
+}
+
+[navigationLeft] {
+	display: inline-block;
+}
+
+[navigationLeft] * {
+	display: block;
+	text-align: left;
+}
+
+[navigationRight] {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+[navigationRight] p {
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+[navigationRight] [frameNavigation] {
+	width: initial;
+}
+
+[navigationCenter], [previewControl] {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+[navigationCenter] *, [previewControl] * {
+	display: block;
+}
+
+[navigationCenter] input, [previewControl] button {
+	display: inline-block;
+	margin-bottom: 3px;
+}
+
+[navigationCenter] p {
+	margin: 2px;
+}
+
+[navigationCenter] label {
+	margin-bottom: 5px;
+}
+
+a[download] {
+	display: none;
+}
+
+#previewHolder {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+#previewHolder * {
+	display: block;
+}
+
+#previewHolder input {
+	display: inline-block;
+	margin-bottom: 3px;
+}
+
+[errorBackground], [imageImportBackground], [scrollingTextImportBackground], [gifImportBackground] {
+	display: none;
+	position: fixed;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+	background-color: rgba(190, 190, 190, 0.4);
+}
+
+[errorMessage], [imageImport], [scrollingTextImport], [gifImport] {
+	background-color: white;
+	border: 2px solid black;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	position: fixed;
+	width: 200px;
+	height: 100px;
+	top: calc(100%/2 - 50px);
+	left: calc(100%/2 - 100px);
+}
+
+[errorMessage] output {
+	padding-bottom: 5px;
+	text-align: center;
+	color: red;
+}
+
+
+[imageImport] {
+	width: 350px;
+	height: 250px;
+	top: calc(100%/2 - 125px);
+	left: calc(100%/2 - 175px);
+}
+
+[scrollingTextImport] {
+	width: 350px;
+	height: 200px;
+	top: calc(100%/2 - 100px);
+	left: calc(100%/2 - 175px);
+}
+
+[imageImport] [bottom], [scrollingTextImport] [bottom] {
+	margin-top: 25px;
+}
+
+[gifImport] {
+	width: 500px;
+	height: 420px;
+	top: calc(100%/2 - 250px);
+	left: calc(100%/2 - 210px);
+}
+
+[gifImport] [bottom] {
+	margin-top: 20px;
+}
+
+[blurBackground], [fadeBackground] {
+	display: none;
+	position: fixed;
+	z-index: 1;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0, 0, 0, 0.4);
+}
+
+[blurModal], [fadeModal] {
+	background-color: #fefefe;
+	margin: 10% 10%;
+	border: 1px solid #888;
+	width: 80%;
+}
+[blurModal] input[type="range"], [fadeModal] input[type="range"] {
+	width: 90%;
+}
+[blurModal] [bottom], [fadeModal] [bottom] {
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+/*slider CSS*/
+
+.slidecontainer {
+	width: 100%; /* Width of the outside container */
+	height: 25px;
+	display: inline-block;
+}
+
+/* The slider itself */
+.slider {
+	-webkit-appearance: none;  /* Override default CSS styles */
+	appearance: none;
+	width: 100%; /* Full-width */
+	height: 25px; /* Specified height */
+	background: #d3d3d3; /* Grey background */
+	outline: none; /* Remove outline */
+	opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+	-webkit-transition: .2s; /* 0.2 seconds transition on hover */
+	transition: opacity .2s;
+}
+
+/* Mouse-over effects */
+.slider:hover {
+	opacity: 1; /* Fully shown on mouse-over */
+}
+
+/* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+.slider::-webkit-slider-thumb {
+	-webkit-appearance: none; /* Override default look */
+	appearance: none;
+	width: 25px; /* Set a specific slider handle width */
+	height: 25px; /* Slider handle height */
+	background: #4CAF50; /* Green background */
+	cursor: pointer; /* Cursor on hover */
+}
+
+.slider::-moz-range-thumb {
+	width: 25px; /* Set a specific slider handle width */
+	height: 25px; /* Slider handle height */
+	background: #4CAF50; /* Green background */
+	cursor: pointer; /* Cursor on hover */
+}
+
+[style="clear: both; left: 0; margin: 0;  width: 100%; "] {
+    display: none;
+}

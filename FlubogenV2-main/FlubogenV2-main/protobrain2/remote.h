@@ -1,0 +1,12 @@
+#ifndef _REMOTE_H_
+#define _REMOTE_H_
+
+enum {
+	SET_ANIMATION,
+	LOCK_ANIMATION,
+	SET_BRIGHTNESS,
+	RESET_BRIGHTNESS,
+	FINGER_BITMAP
+} command_e;
+
+#endif /* _REMOTE_H_ */

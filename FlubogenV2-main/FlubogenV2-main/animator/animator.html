@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Proto 2 animator</title>
+	<meta charset="utf-8">
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script type="text/javascript" src="scripts/qPact.min.js"></script>
+	<script type="text/javascript" src="scripts/gifuct.min.js"></script>
+	<script type="text/javascript" src="scripts/led_grid.js"></script>
+	<script type="text/javascript" src="scripts/canvas.js"></script>
+	<script type="text/javascript" src="scripts/script.js"></script>
+	<script type="text/javascript" src="scripts/animator.js"></script>
+	<script type="text/javascript" src="scripts/blur_preview.js"></script>
+	<script type="text/javascript" src="scripts/fade_preview.js"></script>
+</head>
+<body full>
+	<align wide center>
+		<div id="canvasHolder">
+			<canvas mainCanvas></canvas>
+		</div>
+		<p>Palette:</p>
+		<div palette></div>
+	</align>
+	<div imageImportBackground>
+		<div imageImport>
+			<p>Select image:</p>
+			<input type="file" accept="image/*">
+			<p>Image displacement:</p>
+			<select>
+				<option>fit</option>
+				<option>fill</option>
+			</select>
+			<div bottom>
+				<button close>Close</button>
+				<button disabled ok>OK</button>
+			</div>
+		</div>
+	</div>
+	<div scrollingTextImportBackground>
+		<div scrollingTextImport>
+			<p>Select image:</p>
+			<input type="file" accept="image/*">
+			<div bottom>
+				<button close>Close</button>
+				<button disabled ok>OK</button>
+			</div>
+		</div>
+	</div>
+	<div gifImportBackground>
+		<div gifImport>
+			<p red>This feature might not work with all GIFs</p>
+			<p>Select GIF:</p>
+			<input type="file" accept="image/gif">
+			<p>GIF preview:</p>
+			<canvas width="200" height="100" gifPreveiw></canvas>
+			<p>Image displacement:</p>
+			<select>
+				<option>fit</option>
+				<option>fill</option>
+			</select>
+			<div bottom>
+				<button close>Close</button>
+				<button disabled ok>OK</button>
+			</div>
+		</div>
+	</div>
+	<div errorBackground>
+		<div errorMessage>
+			<output>test</output>
+			<button closeErrorMessage block>Close</button>
+		</div>
+	</div>
+	<div blurBackground>
+		<div blurModal>
+			<align wide center>
+				<canvas blurPreview></canvas>
+				<p blurScalingText>Blur scaling:</p>
+				<input type="range" blurScaling class="slider" min="1" max="100" value="25">
+				<p blurAmountText>Blur amount:</p>
+				<input type="range" blurAmount class="slider" min="1" max="50" value="8">
+				<div bottom>
+					<button close>Close</button>
+					<button ok>OK</button>
+				</div>
+			</align>
+		</div>
+	</div>
+	<div fadeBackground>
+		<div fadeModal>
+			<align wide center>
+				<canvas fadePreview></canvas>
+				<input type="range" fadeFrameSlider class="slider" min="1" max="2" value="1">
+				<p>Fade type:</p>
+				<select fadeType>
+					<option value="0">fade-in</option>
+					<option value="1">fade-out</option>
+				</select>
+				<p>Fade length (frames):</p>
+				<input type="number" fadeLength min="1" max="180" value="8">
+				<div bottom>
+					<button close>Close</button>
+					<button ok>OK</button>
+				</div>
+			</align>
+		</div>
+	</div>
+</body>
+</html>
