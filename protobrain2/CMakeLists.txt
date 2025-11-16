@@ -37,12 +37,9 @@ pico_sdk_init()
 
 add_executable(protobrain2
 	src/main.c
-	src/anim.c
-	src/leds.c
-	src/osd.c
-	src/misc.c
-	src/sd_config.c
-	src/gpio.c)
+	src/leds/leds.c
+	src/leds/ws2812b.c
+)
 
 add_subdirectory(lib/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico/src build)
 
@@ -50,7 +47,7 @@ pico_set_program_name(protobrain2 "protobrain2")
 pico_set_program_version(protobrain2 "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(protobrain2 ${CMAKE_CURRENT_LIST_DIR}/src/blink.pio)
+pico_generate_pio_header(protobrain2 ${CMAKE_CURRENT_LIST_DIR}/src/leds/ws2812b.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(protobrain2 0)
@@ -85,6 +82,12 @@ target_link_libraries(protobrain2
         )
 
 add_compile_definitions(PICO_CLOCK_AJDUST_PERI_CLOCK_WITH_SYS_CLOCK=1)
+
+target_compile_options(protobrain2 PRIVATE
+	$<$<COMPILE_LANGUAGE:C>:-Werror>
+	$<$<COMPILE_LANGUAGE:C>:-Wall>
+	$<$<COMPILE_LANGUAGE:C>:-Wextra>
+)
 
 pico_add_extra_outputs(protobrain2)
 
