@@ -85,6 +85,7 @@ void ws2812b_send_buffer(const ws2812b_channel_t *channel, const ws2812b_led_val
     dma_channel_set_read_addr(channel->dma_channel, values, true);
 }
 
+/** Set up the PIO SM and DMA channel for one display. */
 static void setup_pio(
     PIO pio_instance, uint sm_instance, uint *dma_channel, uint program_offset, uint gpio_pin, uint num_leds)
 {
