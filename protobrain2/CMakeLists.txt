@@ -37,12 +37,7 @@ pico_sdk_init()
 
 add_executable(protobrain2
 	src/main.c
-	src/anim.c
-	src/leds.c
-	src/osd.c
-	src/misc.c
-	src/sd_config.c
-	src/gpio.c)
+)
 
 add_subdirectory(lib/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico/src build)
 
@@ -85,6 +80,12 @@ target_link_libraries(protobrain2
         )
 
 add_compile_definitions(PICO_CLOCK_AJDUST_PERI_CLOCK_WITH_SYS_CLOCK=1)
+
+target_compile_options(protobrain2 PRIVATE
+	$<$<COMPILE_LANGUAGE:C>:-Werror>
+	$<$<COMPILE_LANGUAGE:C>:-Wall>
+	$<$<COMPILE_LANGUAGE:C>:-Wextra>
+)
 
 pico_add_extra_outputs(protobrain2)
 
