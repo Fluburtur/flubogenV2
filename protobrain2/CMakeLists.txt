@@ -36,13 +36,13 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(protobrain2
-	main.c
-	anim.c
-	leds.c
-	osd.c
-	misc.c
-	sd_config.c
-	gpio.c)
+	src/main.c
+	src/anim.c
+	src/leds.c
+	src/osd.c
+	src/misc.c
+	src/sd_config.c
+	src/gpio.c)
 
 add_subdirectory(lib/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico/src build)
 
@@ -50,7 +50,7 @@ pico_set_program_name(protobrain2 "protobrain2")
 pico_set_program_version(protobrain2 "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(protobrain2 ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
+pico_generate_pio_header(protobrain2 ${CMAKE_CURRENT_LIST_DIR}/src/blink.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(protobrain2 0)
@@ -63,7 +63,7 @@ target_link_libraries(protobrain2
 
 # Add the standard include files to the build
 target_include_directories(protobrain2 PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
 # Add any user requested libraries
