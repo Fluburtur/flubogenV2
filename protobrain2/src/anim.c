@@ -3,6 +3,7 @@
 
 #include "anim.h"
 #include "ff.h"
+#include "leds/leds.h"
 #include "misc.h"
 
 typedef enum {
@@ -31,7 +32,6 @@ static FIL filAnimation;
 static uint8_t animationCount;
 /* Byte offset of the animation within the file. */
 static int32_t animationOffset[256];
-static rgbColor24bpp_t colorBufferFace[FACE_LED_STRIP_LENGTH];
 static uint16_t animationDeltaMs;
 /* The color mode used for this animation. */
 static color_mode_t animationColorMode;
@@ -131,7 +131,7 @@ bool animationInit(void) {
 			byteSwap((uint8_t*)&frameCount);
 			printDebug("\t%d frames\n", frameCount);
 
-			offset += byteLength(frameCount * FACE_LED_STRIP_LENGTH, colorModeFromCount(colorCount));
+			offset += byteLength(frameCount * NUM_LEDS_FACE, colorModeFromCount(colorCount));
 		} else {
 			printDebug("\tDirect colors\n");
 
@@ -139,7 +139,7 @@ bool animationInit(void) {
 			byteSwap((uint8_t*)&frameCount);
 			printDebug("\t%d frames\n", frameCount);
 
-			offset += (2 + 3 * frameCount * FACE_LED_STRIP_LENGTH);
+			offset += (2 + 3 * frameCount * NUM_LEDS_FACE);
 		}
 	}
 
@@ -152,8 +152,8 @@ void startAnimation(uint8_t animationNumber) {
 
 	if (animationNumber == NO_ANIMATION) {
 		// Clear
-		memset(colorBufferFace, 0, sizeof(rgbColor24bpp_t) * FACE_LED_STRIP_LENGTH);
-		refreshLEDs(LEDS_FACE_CHEEK);
+		ws2812b_led_value_t off = {.grbx = 0};
+		leds_set_channel_to_colour(LED_CHANNEL_FACE, off, false);
 		return;
 	}
 
@@ -195,7 +195,7 @@ void startAnimation(uint8_t animationNumber) {
 
 		animationColorMode = colorModeFromCount(colorCount);
 
-		animationFrameSize = byteLength(FACE_LED_STRIP_LENGTH, animationColorMode);
+		animationFrameSize = byteLength(NUM_LEDS_FACE, animationColorMode);
 
 		// Colors won't be updated if gamma correction table changes during playback but whatever
 		uint8_t colord[3] = {0,0,0};
@@ -216,7 +216,7 @@ void startAnimation(uint8_t animationNumber) {
 	} else {
 		animationColorMode = COLOR_MODE_FULL;
 
-		animationFrameSize = FACE_LED_STRIP_LENGTH * 3;
+		animationFrameSize = NUM_LEDS_FACE * 3;
 
     	f_read(&filAnimation, &animationFrameCount, sizeof(uint16_t), &br);
 		byteSwap((uint8_t *)&animationFrameCount);
@@ -247,21 +247,25 @@ void updateAnimation() {
 		return;
 	}
 
+	ws2812b_led_value_t *colorBufferFace = leds_get_buffer_for_channel(LED_CHANNEL_FACE);
+
 	if (animationColorMode == COLOR_MODE_FULL) {
 		//checkBrightness();
 		//updateOSD(animationNumber + 1);
 
 		uint8_t color[3];
-		for (uint16_t i = 0; i < FACE_LED_STRIP_LENGTH; i++) {
+		for (uint16_t i = 0; i < NUM_LEDS_FACE; i++) {
     		f_read(&filAnimation, &color, 3, &br);
-			for (uint8_t j = 0; j < 3; j++) {
-				/* TODO: restore the gamma correction functionality. */
-				//colorBufferFace[i].raw[j] = gammaCorrection[color[j]];
-				colorBufferFace[i].raw[j] = color[j];
-			}
+			/* TODO: restore the gamma correction functionality. */
+			//colorBufferFace[i].raw[j] = gammaCorrection[color[j]];
+
+			/* The color is stored in the file as RGB bytes. */
+			colorBufferFace[i].r = color[0];
+			colorBufferFace[i].g = color[1];
+			colorBufferFace[i].b = color[2];
 		}
 
-		refreshLEDs();
+		leds_write_buffer_to_channel(LED_CHANNEL_FACE);
 
 		animationFrameDataOffset += animationFrameSize;
 	} else {
@@ -284,25 +288,30 @@ void updateAnimation() {
 					/* Very first color index of frame, get bit offset because data isn't re-aligned
 					 * on bytes between each frame (TODO: get rid of this, too complicated to only
 					 * save a few bits). */
-					uint8_t bitOffset = frameBitOffset(animationColorMode, FACE_LED_STRIP_LENGTH, animationFrame);
+					uint8_t bitOffset = frameBitOffset(animationColorMode, NUM_LEDS_FACE, animationFrame);
 					colorIndex = (colorIndexData[j] >> bitOffset) & indexMask;
 					k = bitOffset/animationColorMode;
 				} else {
 					colorIndex = (colorIndexData[j] >> (animationColorMode * k)) & indexMask;
 				}
-				colorBufferFace[ledIndex] = colorTable[colorIndex];
+
+				/* The color is stored in the table as RGB bytes. */
+				rgbColor24bpp_t color = colorTable[colorIndex];
+				colorBufferFace[ledIndex].r = color.rgb.r;
+				colorBufferFace[ledIndex].g = color.rgb.g;
+				colorBufferFace[ledIndex].b = color.rgb.b;
 
 				ledIndex++;
-				if (ledIndex == FACE_LED_STRIP_LENGTH)
+				if (ledIndex == NUM_LEDS_FACE)
 					break;
 			}
 		}
 
-		refreshLEDs();
+		leds_write_buffer_to_channel(LED_CHANNEL_FACE);
 
 		/* If there's an offset remaining, then the last byte wasn't fully consummed and must be in
 		 * the next frame. */
-		if (frameBitOffset(animationColorMode, FACE_LED_STRIP_LENGTH, animationFrame + 1) > 0)
+		if (frameBitOffset(animationColorMode, NUM_LEDS_FACE, animationFrame + 1) > 0)
 			animationFrameDataOffset += (animationFrameSize - 1);
 		else
 			animationFrameDataOffset += animationFrameSize;

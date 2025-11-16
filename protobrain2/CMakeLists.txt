@@ -42,6 +42,7 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(protobrain2
+	src/anim.c
 	src/main.c
 	src/leds/leds.c
 	src/leds/ws2812b.c
