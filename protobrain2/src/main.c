@@ -44,28 +44,28 @@ int main(void) {
     // if I've made a mistake).
     while (1)
     {
-        leds_debug_set_channel_to_colour(LED_CHANNEL_FACE, red, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_CHEEK, green, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY0, blue, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY1, white, false);
+        leds_set_channel_to_colour(LED_CHANNEL_FACE, red, false);
+        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, green, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY0, blue, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY1, white, false);
         sleep_ms(1000);
 
-        leds_debug_set_channel_to_colour(LED_CHANNEL_FACE, green, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_CHEEK, blue, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY0, white, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY1, red, false);
+        leds_set_channel_to_colour(LED_CHANNEL_FACE, green, false);
+        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, blue, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY0, white, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY1, red, false);
         sleep_ms(1000);
 
-        leds_debug_set_channel_to_colour(LED_CHANNEL_FACE, blue, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_CHEEK, white, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY0, red, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY1, green, false);
+        leds_set_channel_to_colour(LED_CHANNEL_FACE, blue, false);
+        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, white, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY0, red, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY1, green, false);
         sleep_ms(1000);
 
-        leds_debug_set_channel_to_colour(LED_CHANNEL_FACE, white, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_CHEEK, red, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY0, green, false);
-        leds_debug_set_channel_to_colour(LED_CHANNEL_BODY1, blue, false);
+        leds_set_channel_to_colour(LED_CHANNEL_FACE, white, false);
+        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, red, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY0, green, false);
+        leds_set_channel_to_colour(LED_CHANNEL_BODY1, blue, false);
         sleep_ms(1000);
     }
 }
