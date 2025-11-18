@@ -1,5 +1,9 @@
-#include "main.h"
+#include <stdarg.h>
+#include <stdio.h>
+
 #include "misc.h"
+
+static bool debugOutput;
 
 void byteSwap(uint8_t *x) {
 	x[0] ^= x[1];
@@ -19,12 +23,17 @@ void byteSwap(uint8_t *x) {
     }
 }*/
 
-int printDebug(const char *format, ...) {
+void printDebug(const char *format, ...) {
     va_list args;
     va_start(args, format);
 
 	if (debugOutput)
-    	vprintf(format, args);
+    	(void)vprintf(format, args);
 
     va_end(args);
+}
+
+void enablePrintDebug(bool enable)
+{
+    debugOutput = enable;
 }

@@ -44,6 +44,7 @@ pico_sdk_init()
 add_executable(protobrain2
 	src/anim.c
 	src/main.c
+	src/misc.c
 	src/leds/leds.c
 	src/leds/ws2812b.c
 )
