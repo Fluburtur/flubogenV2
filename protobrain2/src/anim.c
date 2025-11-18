@@ -364,3 +364,8 @@ void updateAnimation() {
 		animationFrame++;	// Next frame
 	}
 }
+
+void animationSetLocked(bool locked)
+{
+	animationLocked = locked;
+}

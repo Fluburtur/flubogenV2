@@ -16,4 +16,3 @@ I did this on Linux. If the project settings are bad for Windows, I'm sorry!
 "port the software"
 
 * hook the LEDs up to the automatic brightness control
-* LEDs are controlled from the animation files (face only?)

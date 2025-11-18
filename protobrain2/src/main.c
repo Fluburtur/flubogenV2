@@ -17,55 +17,61 @@
 #include <pico/stdlib.h>
 #include <pico/time.h>
 
+#include "anim.h"
 #include "leds/leds.h"
 
 int main(void) {
     hard_assert(stdio_init_all());
 
     leds_init();
-    sleep_ms(50);
+    sleep_ms(1);
 
-    // The face LEDs should be capped to 100 out of 255 to limit power draw.
-    //
-    // Also note that the perceived brightness of each channel is not equal:
+    hard_assert(animationInit());
+    animationSetLocked(true);
+    startAnimation(BOOT_ANIMATION);
+
+    // Note that the perceived brightness of each channel is not equal:
     //   Red 405   Green 690   Blue 190
     // So if we normalise around the capability of the blue channel, for equal
     // brightness the channels should be scaled like:
     //   Red 0.47  Green 0.28  Blue 1.0
-    // I won't do the brightness equalisation now, though. Just the power limit.
+    // I won't do the brightness equalisation now, though.
 
-    ws2812b_led_value_t red = {.r = 70, .g = 0, .b = 0};
-    ws2812b_led_value_t green = {.r = 0, .g = 70, .b = 0};
-    ws2812b_led_value_t blue = {.r = 0, .g = 0, .b = 70};
-    ws2812b_led_value_t white = {.r = 70, .g = 70, .b = 70};
+    ws2812b_led_value_t red = {.r = 150, .g = 0, .b = 0};
+    ws2812b_led_value_t green = {.r = 0, .g = 150, .b = 0};
+    ws2812b_led_value_t blue = {.r = 0, .g = 0, .b = 150};
+    ws2812b_led_value_t white = {.r = 150, .g = 150, .b = 150};
+    ws2812b_led_value_t colour_cycle[4] = {red, green, blue, white};
 
-    // Loop: r g b white, but each channel is offset through the sequence.
-    // The power limit is also applied to the non-face channels, because I'm lazy (and it's safer
-    // if I've made a mistake).
+    // * Play the face animation (20 FPS).
+    // * Cycle the cheek, body0, and body1 panels through R G B White (1 fps), but each channel is
+    //   offset through the sequence.
+    // I've also limited the power of the non-face channels to 150, because it's safer if I've made
+    // a mistake.
+    uint8_t frame = 0;
+    uint8_t colour_idx_cheek = 0;
+    uint8_t colour_idx_body0 = 1;
+    uint8_t colour_idx_body1 = 2;
     while (1)
     {
-        leds_set_channel_to_colour(LED_CHANNEL_FACE, red, false);
-        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, green, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY0, blue, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY1, white, false);
-        sleep_ms(1000);
+        frame++;
+        updateAnimation();
 
-        leds_set_channel_to_colour(LED_CHANNEL_FACE, green, false);
-        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, blue, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY0, white, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY1, red, false);
-        sleep_ms(1000);
+        if (frame == 1)
+        {
+            leds_set_channel_to_colour(LED_CHANNEL_CHEEK, colour_cycle[colour_idx_cheek], false);
+            leds_set_channel_to_colour(LED_CHANNEL_BODY0, colour_cycle[colour_idx_body0], false);
+            leds_set_channel_to_colour(LED_CHANNEL_BODY1, colour_cycle[colour_idx_body1], false);
+            colour_idx_cheek = (colour_idx_cheek + 1) % 4;
+            colour_idx_body0 = (colour_idx_body0 + 1) % 4;
+            colour_idx_body1 = (colour_idx_body1 + 1) % 4;
+        }
 
-        leds_set_channel_to_colour(LED_CHANNEL_FACE, blue, false);
-        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, white, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY0, red, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY1, green, false);
-        sleep_ms(1000);
+        sleep_ms(50);
 
-        leds_set_channel_to_colour(LED_CHANNEL_FACE, white, false);
-        leds_set_channel_to_colour(LED_CHANNEL_CHEEK, red, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY0, green, false);
-        leds_set_channel_to_colour(LED_CHANNEL_BODY1, blue, false);
-        sleep_ms(1000);
+        if (frame == 20)
+        {
+            frame = 0;
+        }
     }
 }
