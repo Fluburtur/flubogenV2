@@ -1,0 +1,57 @@
+Notes on gamma correction
+
+In old main init:
+  initialiseAutoBrightness();
+  updateGammaCorrection(brightness);
+
+initialiseAutoBrightness() is in leds_old:
+  table of
+    brightness_level_t brightnessLevels[5] = {
+    {1300, MIN_BRIGHTNESS},
+    {2300, 20},
+    {3100, INITIAL_BRIGHTNESS},
+    {3500, 100},
+    {4095, MAX_BRIGHTNESS},
+  };
+  which is composed of
+    typedef struct {
+      uint16_t adc_max;	// In
+      uint8_t brightness;	// Out
+    } brightness_level_t;
+
+  initialiseAutoBrightness sets the global `brightness` var to `MIN_BRIGHTNESS` which == 10
+  MIN_BRIGHTNESS == 10
+  MAX_BRIGHTNESS == 150  (out of 255, according to a comment)
+
+updateGammaCorrection() is also in leds_old:
+  There is a table of uint8_t gammaCorrection[256];
+  It is used to map a "naive" R/G/B value (0-255) to the gamma corrected value (also 0-255)
+    e.g. r_final = gammaCorrection[r_naive]
+
+  The table is populated in updateGammaCorrection(brightness_limit)
+    MIN_GAMMA = 1.2
+    MAX_GAMMA = 1.9
+    (MAX_GAMMA - MIN_GAMMA) = 0.7
+    double gamma = MAX_GAMMA - (((double)255.0 - brightness_limit)/(double)255.0) * (MAX_GAMMA - MIN_GAMMA);
+      // gamma = MAX_GAMMA - [the unusable brightness as a fraction of max power, times the gamma range]
+      // for max brightness_limit 150, gamma = 1.6
+      // the gamma value is a linear interpolation from MIN_GAMMA when brightness_limit == 0, to MAX_GAMMA when brightness_limit == 255
+    double a = brightness_limit / pow(255, gamma);
+      // scaling factor so that the max naive value maps to the chosen brightness_limit
+      // for max brightness_limit 150, a = 0.021166
+    gammaCorrection[i] = round(a * pow(i, gamma));
+      // range is 0 to brightness_limit
+  It's hard to describe what this is trying to do textually; and it's also hard to understand and visualise.
+  So I've created "gamma_correction.ods" -- open it in LibreOffice or Excel.
+  It's an interactive version of the same algorithm. Playing with the variables quickly gives an intuition of what's happening.
+
+  So actually, this function is a combination of:
+    * Mapping RGB values of 0-255 to values of 0-brightness_limit
+    * Applying gamma correction in the process
+
+  Gamma correction makes an RGB value delta near zero have a relatively small effect on the output value,
+  vs a large effect on the output when the same delta is make near 255.
+  This makes a delta value of 5 have the same *perceived* brightness change everywhere. Because human eyes are approximately logarithmic.
+
+  This function varies the strength of the gamma correction, depending on the brightness limit.
+  I guess this is so that, at low brightness limits, the low RGB values (around 50 pre-correction) don't all get crushed down to zero.
