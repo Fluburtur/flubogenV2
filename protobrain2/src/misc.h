@@ -9,4 +9,7 @@ void byteSwap(uint8_t *x);
 void printDebug(const char *format, ...);
 void enablePrintDebug(bool enable);
 
+/** Get the number of elements in an array. */
+#define ARRAY_NELEMS(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
 #endif /* _MISC_H_ */
