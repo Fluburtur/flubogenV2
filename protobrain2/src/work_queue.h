@@ -11,6 +11,7 @@
 typedef enum
 {
     WORK_ITEM_ANIMATE_FACE_FRAME,
+    WORK_ITEM_READ_ADC_SENSORS,
 } work_item_t;
 
 /**

@@ -17,13 +17,20 @@
 #include <pico/stdlib.h>
 #include <pico/time.h>
 
+#include "adc_sensors.h"
 #include "anim.h"
+#include "leds/led_brightness.h"
 #include "leds/leds.h"
 #include "work_queue.h"
 
+/** Read the ADC sensors at 100Hz, producing average values at 10Hz. */
+#define ADC_READ_PERIOD_MS 10
+
 static repeating_timer_t face_animation_timer;
+static repeating_timer_t adc_read_timer;
 
 static bool face_animation_callback(repeating_timer_t *timer);
+static bool adc_read_callback(repeating_timer_t *timer);
 
 int main(void)
 {
@@ -41,6 +48,9 @@ int main(void)
     hard_assert(
         add_repeating_timer_ms(
             animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
+    hard_assert(
+        add_repeating_timer_ms(
+            ADC_READ_PERIOD_MS, adc_read_callback, NULL, &adc_read_timer));
 
     // Note that the perceived brightness of each channel is not equal:
     //   Red 405   Green 690   Blue 190
@@ -94,6 +104,16 @@ int main(void)
         }
         break;
 
+        case WORK_ITEM_READ_ADC_SENSORS:
+        {
+            bool averages_updated = adc_sensors_read();
+            if (averages_updated)
+            {
+                checkBrightness(adc_sensors_get_averages().brightness);
+            }
+        }
+        break;
+
         default:
         {
             /* Unrecognised work, something has gone wrong. */
@@ -109,5 +129,13 @@ static bool face_animation_callback(repeating_timer_t *timer)
     (void)timer;
     work_queue_add(WORK_ITEM_ANIMATE_FACE_FRAME);
     /* Assume we want to draw more frames. */
+    return true;
+}
+
+static bool adc_read_callback(repeating_timer_t *timer)
+{
+    (void)timer;
+    work_queue_add(WORK_ITEM_READ_ADC_SENSORS);
+    /* We never want to stop. */
     return true;
 }
