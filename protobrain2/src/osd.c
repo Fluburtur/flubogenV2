@@ -159,63 +159,121 @@ void osd_init(void)
     busWrite(MAX7456_VM0, 0b01001000); // 0b01001000 PAL auto sync, OSD on ---- 0x48
 }
 
-/*void updateOSD(uint8_t animationNumber) {
-	// For some reason the OSD can only display 28 characters on one line instead of the 30 that is specified in datasheet
-	char lineBuffer[(MAX7456_CHARS_PER_LINE - 2) + 1];
+void updateOSD(uint8_t animationNumber)
+{
+#if 1
+    /* The code that was in main_old.c when I started to overhaul everything. Seems to be an
+     * attempt to port from the old STM32 code to the RP2040. */
 
-	LOG_E(SYSTEM, "ADC_CURRENT: %d", adcGetChannel(ADC_CURRENT));
+    // printf("MAX7456_VM0: %02X\n", busRead(MAX7456_VM0));
+    //  osd_print(2, 1, "DEBUG MODE", 1);
 
-	timeUs_t newBatteryUpdate = micros();
-	timeUs_t delta = newBatteryUpdate - lastBatteryUpdate;
+    // // 10k/1k voltage divider
+    uint32_t result = (ADCAvgBattV * 9075) >> 10; // * 11 * 3.3 * 1000 / 4096: mV (22.10)
+    sprintf(strBuffer, "%2u.%03uV", result / 1000, result % 1000);
+    osd_print(1, MAX7456_PAL_ROWS - 2, strBuffer, 0);
 
-	// Update battery measurements
-	batteryUpdate(delta);
-	currentMeterUpdate(delta);
-	powerMeterUpdate(delta);
-	lastBatteryUpdate = newBatteryUpdate;
+    // // Vo = IS RS RL / 5k = IS * 0.25 * 14300 / 5000 = IS * 0.715
+    // // IS = Vo / (0.25 * 14300 / 5000) = Vo / 0.715 = Vo * 1.399
+    // // Pico ADC precision is crap, low current won't be accurately measured (60mA real shows 130mA)
+    // result = (ADCAvgCurrent * 1154) >> 10;	// * 1.399 * 3.3 * 1000 / 4096: mA (22.10)
+    // sprintf(strBuffer, "CURNT:%04u (%1u.%03uA)", ADCAvgCurrent, result / 1000, result % 1000);
+    // osd_print(2, 3, strBuffer, 0);
 
-	//LOG_E(SYSTEM, "VBAT ADC: %d", adcGetChannel(ADC_BATTERY));
-	uint16_t voltage = getBatteryVoltage();
-	uint32_t power = getPower();
-	uint32_t mAh = getMAhDrawn();
-	uint32_t time = millis()/1000;
-	uint8_t seconds = time % 60;
-	time /= 60;
-	uint8_t minutes = time % 60;
-	time /= 60;
-	uint8_t bufLen = sprintf(lineBuffer, "%d.%02dV %ld.%01ldW %ld%c",
-			voltage/100, voltage%100, power/100, (power%100)/10, mAh, 0x07	// What char is 0x07 ?
-	);
+    // result = ADCAvgBrightness;
+    // sprintf(strBuffer, "BRGHT:%04u", ADCAvgBrightness);
+    // osd_print(2, 4, strBuffer, 0);
 
-	// Fill with spaces
-	for (uint8_t i = bufLen; i < sizeof(lineBuffer); i++)
-		lineBuffer[i] = ' ';
-	lineBuffer[sizeof(lineBuffer) - 1] = '\0';
+    // sprintf(strBuffer, "REMOTE:%s", remoteOK ? "OK  " : "FAIL");
+    // osd_print(2, 5, strBuffer, 0);
+    // unsigned char * ptr = &strBuffer[0];
+    // // Binary display
+    // for (uint32_t i = 0; i < 2; i++) {
+    // 	for (uint32_t j = 0; j < 8; j++) {
+    // 		*(ptr++) = ('0' + ((lastRemoteData[i] << j) & 0x80));
+    // 	}
+    // 	*(ptr++) = ' ';
+    // }
+    // *(ptr++) = 0;
+    // osd_print(9, 6, strBuffer, 0);
 
-	// Run time
-	sprintf(&lineBuffer[sizeof(lineBuffer) - 10], "%02ld:%02d:%02d%c",
-			time, minutes, seconds, 0x70
-	);
+    // sprintf(strBuffer, "CARD:%s", cardOK ? "OK  " : "FAIL");
+    // osd_print(2, 7, strBuffer, 0);
 
-	// Bottom line: X.XXV X.XW X
-	max7456Write(1, MAX7456_LINES_NTSC - 1, lineBuffer, 0);
+    osd_print(1, MAX7456_PAL_ROWS - 3, ANIMATION_NAME[animationCurrentNumber], 0);
+    msSinceBoot = to_ms_since_boot(get_absolute_time());
+    seconds = (msSinceBoot / 1000) % 60;
+    minutes = (msSinceBoot / (1000 * 60)) % 60;
+    hours = (msSinceBoot / (1000 * 60 * 60)) % 60;
+    sprintf(strBuffer, "%d:%d:%d", hours, minutes, seconds);
+    osd_print(20, MAX7456_PAL_ROWS - 2, strBuffer, 0);
 
-	// Clear line buffer
-	memset(&lineBuffer, 0, sizeof(lineBuffer));
+    sprintf(strBuffer, "remote:%d", lastRemoteData[0]);
+    osd_print(1, MAX7456_PAL_ROWS - 4, strBuffer, 0);
 
-	bool locked = animationLocked && (animationNumber == currentAnimation);
-	if (animationNumber > BOOT_ANIMATION) {
-		bufLen = sprintf(lineBuffer, "CUSTOM ANIMATION %d%s",
-				animationNumber - BOOT_ANIMATION, locked ? " LOCKED" : "");
-	} else {
-		bufLen = sprintf(lineBuffer, "%s%s", ANIMATION_NAME[animationNumber], locked ? " LOCKED" : "");
-	}
+#else
+    /* The code that was in osd.c updateOSD() when I started to overhaul everything. Seems to be
+     * a partly annotated version of the old STM32 code. */
 
-	for (uint8_t i = bufLen; i < sizeof(lineBuffer); i++)
-		lineBuffer[i] = ' ';
-	lineBuffer[sizeof(lineBuffer) - 1] = '\0';
+    // For some reason the OSD can only display 28 characters on one line instead of the 30 that is specified in datasheet
+    char lineBuffer[(MAX7456_CHARS_PER_LINE - 2) + 1];
 
-	max7456Write(1, MAX7456_LINES_NTSC - 2, lineBuffer, 0);
+    LOG_E(SYSTEM, "ADC_CURRENT: %d", adcGetChannel(ADC_CURRENT));
 
-	max7456Update();
-}*/
+    timeUs_t newBatteryUpdate = micros();
+    timeUs_t delta = newBatteryUpdate - lastBatteryUpdate;
+
+    // Update battery measurements
+    batteryUpdate(delta);
+    currentMeterUpdate(delta);
+    powerMeterUpdate(delta);
+    lastBatteryUpdate = newBatteryUpdate;
+
+    // LOG_E(SYSTEM, "VBAT ADC: %d", adcGetChannel(ADC_BATTERY));
+    uint16_t voltage = getBatteryVoltage();
+    uint32_t power = getPower();
+    uint32_t mAh = getMAhDrawn();
+    uint32_t time = millis() / 1000;
+    uint8_t seconds = time % 60;
+    time /= 60;
+    uint8_t minutes = time % 60;
+    time /= 60;
+    uint8_t bufLen = sprintf(lineBuffer, "%d.%02dV %ld.%01ldW %ld%c",
+                             voltage / 100, voltage % 100, power / 100, (power % 100) / 10, mAh, 0x07 // What char is 0x07 ?
+    );
+
+    // Fill with spaces
+    for (uint8_t i = bufLen; i < sizeof(lineBuffer); i++)
+        lineBuffer[i] = ' ';
+    lineBuffer[sizeof(lineBuffer) - 1] = '\0';
+
+    // Run time
+    sprintf(&lineBuffer[sizeof(lineBuffer) - 10], "%02ld:%02d:%02d%c",
+            time, minutes, seconds, 0x70);
+
+    // Bottom line: X.XXV X.XW X
+    max7456Write(1, MAX7456_LINES_NTSC - 1, lineBuffer, 0);
+
+    // Clear line buffer
+    memset(&lineBuffer, 0, sizeof(lineBuffer));
+
+    bool locked = animationLocked && (animationNumber == currentAnimation);
+    if (animationNumber > BOOT_ANIMATION)
+    {
+        bufLen = sprintf(lineBuffer, "CUSTOM ANIMATION %d%s",
+                         animationNumber - BOOT_ANIMATION, locked ? " LOCKED" : "");
+    }
+    else
+    {
+        bufLen = sprintf(lineBuffer, "%s%s", ANIMATION_NAME[animationNumber], locked ? " LOCKED" : "");
+    }
+
+    for (uint8_t i = bufLen; i < sizeof(lineBuffer); i++)
+        lineBuffer[i] = ' ';
+    lineBuffer[sizeof(lineBuffer) - 1] = '\0';
+
+    max7456Write(1, MAX7456_LINES_NTSC - 2, lineBuffer, 0);
+
+    max7456Update();
+#endif
+}
