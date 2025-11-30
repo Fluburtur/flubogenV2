@@ -189,7 +189,7 @@ bool animationInit(void) {
 	return true;
 }
 
-void startAnimation(uint8_t animationNumber) {
+uint16_t startAnimation(uint8_t animationNumber) {
 	/* Number of bytes actually read. */
 	UINT br;
 
@@ -197,12 +197,12 @@ void startAnimation(uint8_t animationNumber) {
 		// Clear
 		ws2812b_led_value_t off = {.grbx = 0};
 		leds_set_channel_to_colour(LED_CHANNEL_FACE, off, false);
-		return;
+		return 0;
 	}
 
 	if (animationNumber > animationCount)
 	{
-		return;
+		return 0;
 	}
 
 	animationCurrentNumber = animationNumber;
@@ -214,7 +214,7 @@ void startAnimation(uint8_t animationNumber) {
 	if (fr != FR_OK) {
 		/* TODO: restore card failure reporting. */
 		//cardOK = false;
-		return;
+		return 0;
 	}
 	printDebug("Start animation %d (offset %ld)\n", animationIndex, animationOffset[animationIndex]);
 
@@ -269,6 +269,8 @@ void startAnimation(uint8_t animationNumber) {
 	printDebug("\tanimationColorMode = %u\n", animationColorMode);
 	printDebug("\tanimationFrameCount = %u\n", animationFrameCount);
 	printDebug("\tanimationFrameDataStart = %u\n", animationFrameDataStart);
+
+	return animationDeltaMs;
 }
 
 // Must be called every animationDeltaMs ms
