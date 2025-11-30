@@ -117,6 +117,18 @@ int main(void)
         }
         break;
 
+        case WORK_ITEM_BRIGHTNESS_CLEAR_USER_OFFSET:
+            led_brightness_clear_user_offset();
+            break;
+
+        case WORK_ITEM_BRIGHTNESS_INCREASE_USER_OFFSET:
+            led_brightness_increase_user_offset();
+            break;
+
+        case WORK_ITEM_BRIGHTNESS_DECREASE_USER_OFFSET:
+            led_brightness_decrease_user_offset();
+            break;
+
         default:
         {
             /* Unrecognised work, something has gone wrong. */
