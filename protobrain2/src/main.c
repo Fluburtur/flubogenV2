@@ -38,6 +38,9 @@ int main(void)
 
     work_queue_init();
 
+    adc_sensors_init();
+    led_brightness_init(adc_sensors_get_averages().brightness);
+
     leds_init();
     sleep_ms(1);
 
@@ -109,7 +112,7 @@ int main(void)
             bool averages_updated = adc_sensors_read();
             if (averages_updated)
             {
-                checkBrightness(adc_sensors_get_averages().brightness);
+                led_brightness_update_auto(adc_sensors_get_averages().brightness);
             }
         }
         break;
