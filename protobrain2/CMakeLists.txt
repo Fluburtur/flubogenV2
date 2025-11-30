@@ -47,6 +47,7 @@ add_executable(protobrain2
 	src/main.c
 	src/misc.c
 	src/work_queue.c
+        src/leds/led_brightness.c
 	src/leds/leds.c
 	src/leds/ws2812b.c
 )
@@ -95,7 +96,6 @@ target_link_libraries(protobrain2 PRIVATE
 	hardware_uart
 	hardware_xosc
     pico_stdlib
-	pico_util
 )
 
 add_compile_definitions(PICO_CLOCK_AJDUST_PERI_CLOCK_WITH_SYS_CLOCK=1)
