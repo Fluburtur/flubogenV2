@@ -68,7 +68,7 @@ typedef union {
 extern const char *ANIMATION_NAME[];
 
 bool animationInit(void);
-void startAnimation(uint8_t animationNumber);
+uint16_t startAnimation(uint8_t animationNumber);
 void updateAnimation();
 void animationSetLocked(bool locked);
 

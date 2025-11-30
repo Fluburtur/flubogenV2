@@ -19,16 +19,28 @@
 
 #include "anim.h"
 #include "leds/leds.h"
+#include "work_queue.h"
 
-int main(void) {
+static repeating_timer_t face_animation_timer;
+
+static bool face_animation_callback(repeating_timer_t *timer);
+
+int main(void)
+{
     hard_assert(stdio_init_all());
+
+    work_queue_init();
 
     leds_init();
     sleep_ms(1);
 
     hard_assert(animationInit());
     animationSetLocked(true);
-    startAnimation(BOOT_ANIMATION);
+    uint16_t animation_period_ms = startAnimation(BOOT_ANIMATION);
+    hard_assert(animation_period_ms != 0);
+    hard_assert(
+        add_repeating_timer_ms(
+            animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
 
     // Note that the perceived brightness of each channel is not equal:
     //   Red 405   Green 690   Blue 190
@@ -52,26 +64,50 @@ int main(void) {
     uint8_t colour_idx_cheek = 0;
     uint8_t colour_idx_body0 = 1;
     uint8_t colour_idx_body1 = 2;
-    while (1)
+
+    while (true)
     {
-        frame++;
-        updateAnimation();
-
-        if (frame == 1)
+        work_item_t work = work_queue_remove_blocking();
+        switch (work)
         {
-            leds_set_channel_to_colour(LED_CHANNEL_CHEEK, colour_cycle[colour_idx_cheek], false);
-            leds_set_channel_to_colour(LED_CHANNEL_BODY0, colour_cycle[colour_idx_body0], false);
-            leds_set_channel_to_colour(LED_CHANNEL_BODY1, colour_cycle[colour_idx_body1], false);
-            colour_idx_cheek = (colour_idx_cheek + 1) % 4;
-            colour_idx_body0 = (colour_idx_body0 + 1) % 4;
-            colour_idx_body1 = (colour_idx_body1 + 1) % 4;
+        case WORK_ITEM_ANIMATE_FACE_FRAME:
+        {
+            frame++;
+            updateAnimation();
+
+            if (frame == 1)
+            {
+                leds_set_channel_to_colour(LED_CHANNEL_CHEEK, colour_cycle[colour_idx_cheek], false);
+                leds_set_channel_to_colour(LED_CHANNEL_BODY0, colour_cycle[colour_idx_body0], false);
+                leds_set_channel_to_colour(LED_CHANNEL_BODY1, colour_cycle[colour_idx_body1], false);
+                colour_idx_cheek = (colour_idx_cheek + 1) % 4;
+                colour_idx_body0 = (colour_idx_body0 + 1) % 4;
+                colour_idx_body1 = (colour_idx_body1 + 1) % 4;
+            }
+
+            sleep_ms(50);
+
+            if (frame == 20)
+            {
+                frame = 0;
+            }
         }
+        break;
 
-        sleep_ms(50);
-
-        if (frame == 20)
+        default:
         {
-            frame = 0;
+            /* Unrecognised work, something has gone wrong. */
+            hard_assert(false);
+            break;
+        }
         }
     }
+}
+
+static bool face_animation_callback(repeating_timer_t *timer)
+{
+    (void)timer;
+    work_queue_add(WORK_ITEM_ANIMATE_FACE_FRAME);
+    /* Assume we want to draw more frames. */
+    return true;
 }
