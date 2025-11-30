@@ -42,6 +42,7 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(protobrain2
+	src/adc_sensors.c
 	src/anim.c
 	src/main.c
 	src/misc.c
