@@ -11,6 +11,13 @@
 
 // ADC values for automatic brightness adjustment (GL5528 photoresistor + 10k pulldown)
 
+// Note that the perceived brightness of each channel is not equal:
+//   Red 405   Green 690   Blue 190
+// So if we normalise around the capability of the blue channel, for equal
+// brightness the channels should be scaled like:
+//   Red 0.47  Green 0.28  Blue 1.0
+// I won't do the brightness equalisation now, though.
+
 #include <stdint.h>
 
 #include <pico/assert.h>
@@ -25,6 +32,8 @@
 
 /** Read the ADC sensors at 100Hz, producing average values at 10Hz. */
 #define ADC_READ_PERIOD_MS 10
+
+static const ws2812b_led_value_t logo_colour = {.r = 0, .g = 0, .b = 255};
 
 static repeating_timer_t face_animation_timer;
 static repeating_timer_t adc_read_timer;
@@ -44,6 +53,11 @@ int main(void)
     leds_init();
     sleep_ms(1);
 
+    /* For now, just set the cheek and body logos to a fixed colour. */
+    leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
+    leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
+    leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
+
     hard_assert(animationInit());
     animationSetLocked(true);
     uint16_t animation_period_ms = startAnimation(BOOT_ANIMATION);
@@ -55,57 +69,14 @@ int main(void)
         add_repeating_timer_ms(
             ADC_READ_PERIOD_MS, adc_read_callback, NULL, &adc_read_timer));
 
-    // Note that the perceived brightness of each channel is not equal:
-    //   Red 405   Green 690   Blue 190
-    // So if we normalise around the capability of the blue channel, for equal
-    // brightness the channels should be scaled like:
-    //   Red 0.47  Green 0.28  Blue 1.0
-    // I won't do the brightness equalisation now, though.
-
-    ws2812b_led_value_t red = {.r = 150, .g = 0, .b = 0};
-    ws2812b_led_value_t green = {.r = 0, .g = 150, .b = 0};
-    ws2812b_led_value_t blue = {.r = 0, .g = 0, .b = 150};
-    ws2812b_led_value_t white = {.r = 150, .g = 150, .b = 150};
-    ws2812b_led_value_t colour_cycle[4] = {red, green, blue, white};
-
-    // * Play the face animation (20 FPS).
-    // * Cycle the cheek, body0, and body1 panels through R G B White (1 fps), but each channel is
-    //   offset through the sequence.
-    // I've also limited the power of the non-face channels to 150, because it's safer if I've made
-    // a mistake.
-    uint8_t frame = 0;
-    uint8_t colour_idx_cheek = 0;
-    uint8_t colour_idx_body0 = 1;
-    uint8_t colour_idx_body1 = 2;
-
     while (true)
     {
         work_item_t work = work_queue_remove_blocking();
         switch (work)
         {
         case WORK_ITEM_ANIMATE_FACE_FRAME:
-        {
-            frame++;
             updateAnimation();
-
-            if (frame == 1)
-            {
-                leds_set_channel_to_colour(LED_CHANNEL_CHEEK, colour_cycle[colour_idx_cheek], false);
-                leds_set_channel_to_colour(LED_CHANNEL_BODY0, colour_cycle[colour_idx_body0], false);
-                leds_set_channel_to_colour(LED_CHANNEL_BODY1, colour_cycle[colour_idx_body1], false);
-                colour_idx_cheek = (colour_idx_cheek + 1) % 4;
-                colour_idx_body0 = (colour_idx_body0 + 1) % 4;
-                colour_idx_body1 = (colour_idx_body1 + 1) % 4;
-            }
-
-            sleep_ms(50);
-
-            if (frame == 20)
-            {
-                frame = 0;
-            }
-        }
-        break;
+            break;
 
         case WORK_ITEM_READ_ADC_SENSORS:
         {
