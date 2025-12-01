@@ -59,7 +59,6 @@ int main(void)
     leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
 
     hard_assert(animationInit());
-    animationSetLocked(true);
     uint16_t animation_period_ms = startAnimation(BOOT_ANIMATION);
     hard_assert(animation_period_ms != 0);
     hard_assert(
@@ -75,8 +74,18 @@ int main(void)
         switch (work)
         {
         case WORK_ITEM_ANIMATE_FACE_FRAME:
-            updateAnimation();
-            break;
+        {
+            bool finished = updateAnimation();
+            if (finished)
+            {
+                cancel_repeating_timer(&face_animation_timer);
+                animation_period_ms = startAnimation(DEFAULT_ANIMATION);
+                hard_assert(
+                    add_repeating_timer_ms(
+                        animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
+            }
+        }
+        break;
 
         case WORK_ITEM_READ_ADC_SENSORS:
         {
