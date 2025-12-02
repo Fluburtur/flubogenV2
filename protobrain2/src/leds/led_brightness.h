@@ -26,15 +26,15 @@ void led_brightness_init(uint16_t adc_brightness);
  *
  * @param[in] adc_brightness The current ADC brightness sensor value.
  */
-void led_brightness_update_auto(uint16_t adc_brightness);
+void led_brightness_update(uint16_t adc_brightness);
 
 /**
- * Get the LED brightness map.
+ * Get the LED brightness map for the face.
  *
  * The map contains 255 values.
  * The index is an input R/G/B value in the range 0-255.
  * The output is an R/G/B value in the range 0 to the safe value.
  */
-const uint8_t *led_brightness_get_map(void);
+const uint8_t *led_brightness_get_face_map(void);
 
 #endif /* _LED_BRIGHTNESS_H_ */

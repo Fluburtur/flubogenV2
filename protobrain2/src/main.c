@@ -150,7 +150,7 @@ int main(void)
             bool averages_updated = adc_sensors_read();
             if (averages_updated)
             {
-                led_brightness_update_auto(adc_sensors_get_averages().brightness);
+                led_brightness_update(adc_sensors_get_averages().brightness);
             }
         }
         break;
