@@ -69,7 +69,7 @@ extern const char *ANIMATION_NAME[];
 
 bool animationInit(void);
 uint16_t startAnimation(uint8_t animationNumber);
-void updateAnimation();
+bool updateAnimation();
 void animationSetLocked(bool locked);
 
 #endif /* _ANIM_H_ */

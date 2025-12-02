@@ -233,12 +233,12 @@ uint16_t startAnimation(uint8_t animationNumber) {
 }
 
 // Must be called every animationDeltaMs ms
-void updateAnimation() {
+bool updateAnimation() {
 	/* Number of bytes actually read. */
 	UINT br;
 
 	if (animationFrame >= animationFrameCount)
-		return;	// Done playing
+		return true;	// Done playing
 
 	printDebug("animationFrame = %u\n", animationFrame);
 
@@ -246,7 +246,7 @@ void updateAnimation() {
 	if (fr != FR_OK) {
 		/* TODO: restore card failure reporting. */
 		//cardOK = false;
-		return;
+		return true;
 	}
 
 	ws2812b_led_value_t *colorBufferFace = leds_get_buffer_for_channel(LED_CHANNEL_FACE);
@@ -326,6 +326,8 @@ void updateAnimation() {
 	} else {
 		animationFrame++;	// Next frame
 	}
+
+	return false;
 }
 
 void animationSetLocked(bool locked)
