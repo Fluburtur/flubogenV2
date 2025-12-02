@@ -28,9 +28,13 @@ typedef struct
  * Must be ordered from low to high sensor value. */
 static const brightness_level_t auto_brightness_levels_face[] = {
     {1300, 10},
+    {1800, 13},
     {2300, 20},
+    {2700, 30},
     {3100, 50},
+    {3300, 73},
     {3500, 100},
+    {3798, 128},
     {4095, MAX_BRIGHTNESS_FACE},
 };
 
@@ -38,9 +42,13 @@ static const brightness_level_t auto_brightness_levels_face[] = {
  * Must be ordered from low to high sensor value. */
 static const brightness_level_t auto_brightness_levels_logo[] = {
     {1300, 30},
+    {1800, 35},
     {2300, 47},
+    {2700, 64},
     {3100, 100},
+    {3300, 144},
     {3500, 187},
+    {3798, 225},
     {4095, MAX_BRIGHTNESS_LOGO},
 };
 
