@@ -1,16 +1,16 @@
 #include <math.h>
 
+#include <pico/assert.h>
+
 #include "led_brightness.h"
 
 #include "adc_sensors.h"
 #include "misc.h"
 
-#define MIN_BRIGHTNESS 10
-#define INITIAL_BRIGHTNESS 50
 /** The hardware can be driven up to 255, but we limit to 150 due to power supply limitations. */
-#define MAX_BRIGHTNESS 150
-
-#define USER_OFFSET_STEP ((MAX_BRIGHTNESS * 5) / 100)
+#define MAX_BRIGHTNESS_FACE 150
+/** The logos can be driven at full power, no problem. */
+#define MAX_BRIGHTNESS_LOGO 255
 
 #define MAX_GAMMA 1.9
 #define MIN_GAMMA 1.2
@@ -24,139 +24,123 @@ typedef struct
     uint8_t brightness;
 } brightness_level_t;
 
-/* Maps an ADC sensor value to an automatic brightness level.
+/* Maps an ADC sensor value to an automatic face brightness level.
  * Must be ordered from low to high sensor value. */
-static const brightness_level_t auto_brightness_levels[] = {
-    {1300, MIN_BRIGHTNESS},
+static const brightness_level_t auto_brightness_levels_face[] = {
+    {1300, 10},
+    {1800, 13},
     {2300, 20},
-    {3100, INITIAL_BRIGHTNESS},
+    {2700, 30},
+    {3100, 50},
+    {3300, 73},
     {3500, 100},
-    {4095, MAX_BRIGHTNESS},
+    {3798, 128},
+    {4095, MAX_BRIGHTNESS_FACE},
 };
 
+/* Maps an ADC sensor value to an automatic logo brightness level.
+ * Must be ordered from low to high sensor value. */
+static const brightness_level_t auto_brightness_levels_logo[] = {
+    {1300, 30},
+    {1800, 35},
+    {2300, 47},
+    {2700, 64},
+    {3100, 100},
+    {3300, 144},
+    {3500, 187},
+    {3798, 225},
+    {4095, MAX_BRIGHTNESS_LOGO},
+};
+
+/* The automatically chosen brightness limit for the face. */
+static uint8_t brightness_limit_face;
+/* The automatically chosen brightness limit for the logo. */
+static uint8_t brightness_limit_logo;
+
 /* The .fur file has the animation's RGB values in the range 0-255.
- * Map these to the range 0 to `final_brightness_limit` */
-static uint8_t brightnessMap[256] = {};
+ * Map these to the range 0 to `brightness_limit_face` */
+static uint8_t brightness_map_face[256] = {};
 
-/* The automatically chosen brightness limit. */
-static uint8_t auto_brightness_limit;
-/* This is a manual offset to be applied after the auto brightness value. */
-static int16_t user_offset;
-/* The actual brightness limit = auto + user offset. */
-static uint8_t final_brightness_limit;
-
-static void update_final_brightness(void);
-static uint8_t sensor_value_to_auto_brightness(uint16_t adc_value);
-static void update_brightness_map(double brightness_limit);
+static uint8_t sensor_value_to_auto_brightness(
+    uint16_t adc_value, const brightness_level_t *table, uint8_t n_table_entries);
+static void update_brightness_map_face(double brightness_limit);
 
 void led_brightness_init(uint16_t adc_brightness)
 {
-    user_offset = 0;
+    /* Set to invalid values to force an update. */
+    brightness_limit_face = 0;
+    brightness_limit_logo = 0;
+    led_brightness_update(adc_brightness);
 
-    /* Set to an invalid value to force an update. */
-    final_brightness_limit = 0;
-    led_brightness_update_auto(adc_brightness);
-
-    printDebug("Brightness initialised to %u\n", final_brightness_limit);
+    printDebug(
+        "Face and logo brightness initialised to %u, %u\n",
+        brightness_limit_face, brightness_limit_logo);
 }
 
-void led_brightness_update_auto(uint16_t adc_brightness)
+void led_brightness_update(uint16_t adc_brightness)
 {
-    auto_brightness_limit = sensor_value_to_auto_brightness(adc_brightness);
-    update_final_brightness();
-}
+    uint8_t old_brightness_limit_face = brightness_limit_face;
 
-void led_brightness_clear_user_offset(void)
-{
-    user_offset = 0;
-    update_final_brightness();
-}
-
-void led_brightness_increase_user_offset(void)
-{
-    user_offset += USER_OFFSET_STEP;
-    /* Stop the values going too far out of range. */
-    if (user_offset > MAX_BRIGHTNESS)
+    brightness_limit_face = sensor_value_to_auto_brightness(
+        adc_brightness, auto_brightness_levels_face, ARRAY_NELEMS(auto_brightness_levels_face));
+    if (brightness_limit_face != old_brightness_limit_face)
     {
-        user_offset = MAX_BRIGHTNESS;
-    }
-    update_final_brightness();
-}
-
-void led_brightness_decrease_user_offset(void)
-{
-    user_offset -= USER_OFFSET_STEP;
-    /* Stop the values going too far out of range. */
-    if (user_offset < (-MAX_BRIGHTNESS))
-    {
-        user_offset = (-MAX_BRIGHTNESS);
-    }
-    update_final_brightness();
-}
-
-const uint8_t *led_brightness_get_map(void)
-{
-    return brightnessMap;
-}
-
-/**
- * Calculate and apply the final brightness limit.
- *
- * Final = auto brightness + user offset.
- */
-static void update_final_brightness(void)
-{
-    uint8_t old_final_brightness_limit = final_brightness_limit;
-
-    int16_t target_brightness_limit = (int16_t)auto_brightness_limit + user_offset;
-    if (target_brightness_limit > MAX_BRIGHTNESS)
-    {
-        target_brightness_limit = MAX_BRIGHTNESS;
-    }
-    else if (target_brightness_limit < MIN_BRIGHTNESS)
-    {
-        target_brightness_limit = MIN_BRIGHTNESS;
+        update_brightness_map_face(brightness_limit_face);
     }
 
-    final_brightness_limit = (uint8_t)target_brightness_limit;
-    if (final_brightness_limit != old_final_brightness_limit)
-    {
-        update_brightness_map(final_brightness_limit);
-    }
+    brightness_limit_logo = sensor_value_to_auto_brightness(
+        adc_brightness, auto_brightness_levels_logo, ARRAY_NELEMS(auto_brightness_levels_logo));
+}
+
+const uint8_t *led_brightness_get_face_map(void)
+{
+    return brightness_map_face;
+}
+
+uint8_t led_brightness_get_logo_value(void)
+{
+    return brightness_limit_logo;
 }
 
 /**
  * Convert an ADC sensor value to an automatic brightness.
+ *
+ * @param[in] adc_value
+ * @param[in] table Lookup table. Must be ordered from low to high sensor value.
+ * @param[in] n_table_entries How many entries in the table.
  */
-static uint8_t sensor_value_to_auto_brightness(uint16_t adc_value)
+static uint8_t sensor_value_to_auto_brightness(
+    uint16_t adc_value, const brightness_level_t *table, uint8_t n_table_entries)
 {
-    uint8_t last_table_idx = ARRAY_NELEMS(auto_brightness_levels) - 1;
+    uint8_t last_table_idx = n_table_entries - 1;
     /* The mapping is step-wise.
      * The brightness is x until the first sensor value, y until the second sensor value... */
     for (uint8_t i = 0; i <= last_table_idx; i++)
     {
-        if (adc_value < auto_brightness_levels[i].adc_max)
+        if (adc_value < table[i].adc_max)
         {
-            return auto_brightness_levels[i].brightness;
+            return table[i].brightness;
         }
     }
 
-    return auto_brightness_levels[last_table_idx].brightness;
+    return table[last_table_idx].brightness;
 }
 
 /**
- * Update the brightness map
+ * Update the face brightness map.
  *
  * @param[in] brightness_limit The chosen brightness limit.
  */
-static void update_brightness_map(double brightness_limit)
+static void update_brightness_map_face(double brightness_limit)
 {
+    hard_assert(brightness_limit <= (double)MAX_BRIGHTNESS_FACE);
+
     // TODO: Make this fixed-point
     double gamma = MAX_GAMMA - ((255.0 - brightness_limit) / 255.0) * (MAX_GAMMA - MIN_GAMMA);
     double a = brightness_limit / pow(255.0, gamma);
 
     for (uint16_t i = 0; i < 256; i++)
     {
-        brightnessMap[i] = round(a * pow(i, gamma));
+        brightness_map_face[i] = round(a * pow(i, gamma));
     }
 }

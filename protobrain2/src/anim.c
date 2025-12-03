@@ -197,7 +197,7 @@ uint16_t startAnimation(uint8_t animationNumber) {
 		animationColorMode = colorModeFromCount(colorCount);
 		animationFrameSize = byteLength(NUM_LEDS_FACE, animationColorMode);
 
-		const uint8_t *brightnessMap = led_brightness_get_map();
+		const uint8_t *brightnessMap = led_brightness_get_face_map();
 
 		// Colors won't be updated if gamma correction table changes during playback but whatever
 		uint8_t colord[3] = {0,0,0};
@@ -255,7 +255,7 @@ bool updateAnimation() {
 		//checkBrightness();
 		//updateOSD(animationNumber + 1);
 
-		const uint8_t *brightnessMap = led_brightness_get_map();
+		const uint8_t *brightnessMap = led_brightness_get_face_map();
 
 		uint8_t color[3];
 		for (uint16_t i = 0; i < NUM_LEDS_FACE; i++) {

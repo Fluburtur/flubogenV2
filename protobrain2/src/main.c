@@ -40,8 +40,6 @@
 #define REPEATING_TIMER_CONTINUE true
 #define ALARM_STOP 0
 
-static const ws2812b_led_value_t logo_colour = {.r = 0, .g = 0, .b = 255};
-
 static repeating_timer_t face_animation_timer;
 static repeating_timer_t adc_read_timer;
 
@@ -70,6 +68,7 @@ int main(void)
     sleep_ms(1);
 
     /* For now, just set the cheek and body logos to a fixed colour. */
+    ws2812b_led_value_t logo_colour = {.r = 0, .g = 0, .b = led_brightness_get_logo_value()};
     leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
     leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
     leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
@@ -150,22 +149,16 @@ int main(void)
             bool averages_updated = adc_sensors_read();
             if (averages_updated)
             {
-                led_brightness_update_auto(adc_sensors_get_averages().brightness);
+                led_brightness_update(adc_sensors_get_averages().brightness);
+
+                /* Logo auto-brightness adjustment. Still a fixed colour. */
+                logo_colour.b = led_brightness_get_logo_value();
+                leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
+                leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
+                leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
             }
         }
         break;
-
-        case WORK_ITEM_BRIGHTNESS_CLEAR_USER_OFFSET:
-            led_brightness_clear_user_offset();
-            break;
-
-        case WORK_ITEM_BRIGHTNESS_INCREASE_USER_OFFSET:
-            led_brightness_increase_user_offset();
-            break;
-
-        case WORK_ITEM_BRIGHTNESS_DECREASE_USER_OFFSET:
-            led_brightness_decrease_user_offset();
-            break;
 
         default:
         {
