@@ -30,10 +30,13 @@
 #include "anim.h"
 #include "leds/led_brightness.h"
 #include "leds/leds.h"
+#include "osd.h"
 #include "work_queue.h"
 
 /** Read the ADC sensors at 100Hz, producing average values at 10Hz. */
 #define ADC_READ_PERIOD_MS 10
+/** Update the OSD every 0.5 second */
+#define OSD_UPDATE_PERIOD_MS 500
 /** Play a random animation every 10 seconds. */
 #define RANDOM_ANIMATION_PERIOD_MS (10 * 1000)
 
@@ -42,6 +45,7 @@
 
 static repeating_timer_t face_animation_timer;
 static repeating_timer_t adc_read_timer;
+static repeating_timer_t osd_update_timer;
 
 /** We use this as a non-repeating timer. */
 static alarm_id_t random_animation_timer;
@@ -50,6 +54,7 @@ static bool want_random_animation;
 
 static bool face_animation_callback(repeating_timer_t *timer);
 static bool adc_read_callback(repeating_timer_t *timer);
+static bool osd_update_callback(repeating_timer_t *timer);
 static int64_t random_animation_callback(alarm_id_t id, void *user_data);
 
 int main(void)
@@ -60,9 +65,6 @@ int main(void)
 
     adc_sensors_init();
     led_brightness_init(adc_sensors_get_averages().brightness);
-    hard_assert(
-        add_repeating_timer_ms(
-            ADC_READ_PERIOD_MS, adc_read_callback, NULL, &adc_read_timer));
 
     leds_init();
     sleep_ms(1);
@@ -73,13 +75,23 @@ int main(void)
     leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
     leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
 
+    osd_init();
+
     /* Start the boot animation. */
     hard_assert(animationInit());
     uint16_t animation_period_ms = startAnimation(BOOT_ANIMATION);
     hard_assert(animation_period_ms != 0);
+
+    /* Start the timers last, so we don't accumulate lots of work during any slow parts of init. */
     hard_assert(
         add_repeating_timer_ms(
             animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
+    hard_assert(
+        add_repeating_timer_ms(
+            ADC_READ_PERIOD_MS, adc_read_callback, NULL, &adc_read_timer));
+    hard_assert(
+        add_repeating_timer_ms(
+            OSD_UPDATE_PERIOD_MS, osd_update_callback, NULL, &osd_update_timer));
 
     while (true)
     {
@@ -160,6 +172,18 @@ int main(void)
         }
         break;
 
+        case WORK_ITEM_UPDATE_OSD:
+        {
+            uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
+            const uint8_t fake_remote_data[] = {0, 0};
+            osd_update(
+                adc_sensors_get_averages().battery_v,
+                ms_since_boot,
+                animation_get_current_name(),
+                fake_remote_data);
+        }
+        break;
+
         default:
         {
             /* Unrecognised work, something has gone wrong. */
@@ -191,6 +215,14 @@ static bool adc_read_callback(repeating_timer_t *timer)
 {
     (void)timer;
     work_queue_add(WORK_ITEM_READ_ADC_SENSORS);
+    /* We never want to stop. */
+    return REPEATING_TIMER_CONTINUE;
+}
+
+static bool osd_update_callback(repeating_timer_t *timer)
+{
+    (void)timer;
+    work_queue_add(WORK_ITEM_UPDATE_OSD);
     /* We never want to stop. */
     return REPEATING_TIMER_CONTINUE;
 }
