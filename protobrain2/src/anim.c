@@ -1,4 +1,6 @@
+#include <inttypes.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "anim.h"
@@ -15,15 +17,6 @@ typedef enum {
 	COLOR_MODE_4BPP = 4,
 	COLOR_MODE_8BPP = 8
 } color_mode_t;
-
-const char *ANIMATION_NAME[] = {
-	"NO ANIMATION",
-	"DEFAULT ANIMATION",
-	"RANDOM ANIMATION 1",
-	"RANDOM ANIMATION 2",
-	"RANDOM ANIMATION 3",
-	"BOOT ANIMATION"
-};
 
 #define FILE_NAME "file.fur"
 
@@ -333,4 +326,31 @@ bool updateAnimation() {
 void animationSetLocked(bool locked)
 {
 	animationLocked = locked;
+}
+
+const char *animation_get_current_name(void)
+{
+	uint8_t current_num = animationCurrentNumber;
+
+	/* A small number of fixed names, corresponding to the `animationType_t` values. */
+	static const char *FIXED_NAMES[] = {
+		"NO ANIMATION",
+		"DEFAULT ANIMATION",
+		"RANDOM ANIMATION 1",
+		"RANDOM ANIMATION 2",
+		"RANDOM ANIMATION 3",
+		"BOOT ANIMATION"
+	};
+	if (current_num <= 5)
+	{
+		return FIXED_NAMES[current_num];
+	}
+
+	/* Following this there can be many command animations, starting at
+	 * "COMMAND ANIMATION 1" and going up to nearly 255.
+	 * We don't want a string in ROM for each of them, so we construct one here.
+	 * Size: "COMMAND ANIMATION " + 3 digits + null terminator = 22. */
+	static char cmd_name[22];
+	snprintf(cmd_name, 22, "COMMAND ANIMATION %" PRIu8, current_num - 5);
+	return cmd_name;
 }
