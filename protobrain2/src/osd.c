@@ -1,3 +1,9 @@
+/**
+ * OSD uses the MAX7456 display driver, driven by SPI (the spi0 instance).
+ */
+
+#include <inttypes.h>
+#include <stdio.h>
 #include <stdint.h>
 
 #include <hardware/gpio.h>
@@ -159,18 +165,21 @@ void osd_init(void)
     busWrite(MAX7456_VM0, 0b01001000); // 0b01001000 PAL auto sync, OSD on ---- 0x48
 }
 
-void updateOSD(uint8_t animationNumber)
+void osd_update(uint16_t ADCAvgBattV, uint32_t ms_since_boot, const char *animation_name, const uint8_t *lastRemoteData)
 {
 #if 1
     /* The code that was in main_old.c when I started to overhaul everything. Seems to be an
      * attempt to port from the old STM32 code to the RP2040. */
+
+    /* Temporary line buffer for OSD prints. */
+    char strBuffer[31] = { 0 };
 
     // printf("MAX7456_VM0: %02X\n", busRead(MAX7456_VM0));
     //  osd_print(2, 1, "DEBUG MODE", 1);
 
     // // 10k/1k voltage divider
     uint32_t result = (ADCAvgBattV * 9075) >> 10; // * 11 * 3.3 * 1000 / 4096: mV (22.10)
-    sprintf(strBuffer, "%2u.%03uV", result / 1000, result % 1000);
+    sprintf(strBuffer, "%2" PRIu32 ".%03" PRIu32 "V", result / 1000, result % 1000);
     osd_print(1, MAX7456_PAL_ROWS - 2, strBuffer, 0);
 
     // // Vo = IS RS RL / 5k = IS * 0.25 * 14300 / 5000 = IS * 0.715
@@ -200,15 +209,14 @@ void updateOSD(uint8_t animationNumber)
     // sprintf(strBuffer, "CARD:%s", cardOK ? "OK  " : "FAIL");
     // osd_print(2, 7, strBuffer, 0);
 
-    osd_print(1, MAX7456_PAL_ROWS - 3, ANIMATION_NAME[animationCurrentNumber], 0);
-    msSinceBoot = to_ms_since_boot(get_absolute_time());
-    seconds = (msSinceBoot / 1000) % 60;
-    minutes = (msSinceBoot / (1000 * 60)) % 60;
-    hours = (msSinceBoot / (1000 * 60 * 60)) % 60;
+    osd_print(1, MAX7456_PAL_ROWS - 3, animation_name, 0);
+    uint8_t seconds = (ms_since_boot / 1000) % 60;
+    uint8_t minutes = (ms_since_boot / (1000 * 60)) % 60;
+    uint8_t hours = (ms_since_boot / (1000 * 60 * 60)) % 60;
     sprintf(strBuffer, "%d:%d:%d", hours, minutes, seconds);
     osd_print(20, MAX7456_PAL_ROWS - 2, strBuffer, 0);
 
-    sprintf(strBuffer, "remote:%d", lastRemoteData[0]);
+    sprintf(strBuffer, "remote:%" PRIu8, lastRemoteData[0]);
     osd_print(1, MAX7456_PAL_ROWS - 4, strBuffer, 0);
 
 #else
