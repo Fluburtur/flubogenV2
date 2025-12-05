@@ -110,6 +110,27 @@ static void osd_print(uint8_t x, uint8_t y, char const *str, uint8_t attr)
         busWrite(MAX7456_DMAL, addr);
         busWrite(MAX7456_DMDI, attr);
         addr++;
+        x++;
+    }
+
+    /* x is now pointing at the first location after the string we wrote.
+     * If there are any remaining characters in this line, clear them. This stops a bug where we
+     * write a long string, then write a short string, and some old text from the long string is
+     * showing at the end of the short string. */
+    if (x < 30)
+    {
+        uint8_t n_to_clear = 30 - x;
+        c = defaultCodePage[' '];
+        for (uint8_t i = 0; i < n_to_clear; i++)
+        {
+            /* To clear, I think we can just write a space character, and no need to write the
+             * attr (well we probably should, but all calls to this function use an attr of zero,
+             * so it never gets changed from the default). */
+            busWrite(MAX7456_DMAH, addr >> 8);
+            busWrite(MAX7456_DMAL, addr);
+            busWrite(MAX7456_DMDI, c);
+            addr++;
+        }
     }
 }
 
