@@ -4,6 +4,8 @@
 #include <stdlib.h>
 
 #include "anim.h"
+/* Automatically chooses the fake or real SD card implementation depending on compile-time
+ * configuration. */
 #include "ff.h"
 #include "leds/led_brightness.h"
 #include "leds/leds.h"
