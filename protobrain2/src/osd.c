@@ -186,7 +186,7 @@ void osd_init(void)
     busWrite(MAX7456_VM0, 0b01001000); // 0b01001000 PAL auto sync, OSD on ---- 0x48
 }
 
-void osd_update(uint16_t ADCAvgBattV, uint32_t ms_since_boot, const char *animation_name, const uint8_t *lastRemoteData)
+void osd_update(uint16_t ADCAvgBattV, uint32_t ms_since_boot, const char *animation_name, const uint8_t *lastRemoteData, bool sd_card_ok)
 {
 #if 1
     /* The code that was in main_old.c when I started to overhaul everything. Seems to be an
@@ -227,8 +227,12 @@ void osd_update(uint16_t ADCAvgBattV, uint32_t ms_since_boot, const char *animat
     // *(ptr++) = 0;
     // osd_print(9, 6, strBuffer, 0);
 
-    // sprintf(strBuffer, "CARD:%s", cardOK ? "OK  " : "FAIL");
-    // osd_print(2, 7, strBuffer, 0);
+#ifdef USE_SD_CARD
+    sprintf(strBuffer, "CARD: %s", sd_card_ok ? "OK" : "FAIL");
+    osd_print(2, 7, strBuffer, 0);
+#else
+    (void)sd_card_ok;
+#endif
 
     osd_print(1, MAX7456_PAL_ROWS - 3, animation_name, 0);
     uint8_t seconds = (ms_since_boot / 1000) % 60;

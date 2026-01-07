@@ -184,11 +184,17 @@ int main(void)
         {
             uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
             const uint8_t fake_remote_data[] = {0, 0};
+#ifdef USE_SD_CARD
+            bool sd_card_ok = sd_config_is_card_ok();
+#else
+            bool sd_card_ok = true;
+#endif
             osd_update(
                 adc_sensors_get_averages().battery_v,
                 ms_since_boot,
                 animation_get_current_name(),
-                fake_remote_data);
+                fake_remote_data,
+                sd_card_ok);
         }
         break;
 
