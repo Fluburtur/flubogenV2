@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.13)
 option(
 	SD_card
 	"When ON, animations are read from the SD card. When OFF, animations are baked into the firmware."
-	OFF
+	ON
 )
 
 set(CMAKE_C_STANDARD 11)
