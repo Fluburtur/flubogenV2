@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.13)
 option(
 	SD_card
 	"When ON, animations are read from the SD card. When OFF, animations are baked into the firmware."
-	OFF
+	ON
 )
 
 set(CMAKE_C_STANDARD 11)
@@ -56,6 +56,8 @@ add_executable(protobrain2
 if(SD_card)
 	add_subdirectory(lib/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico/src build)
 	target_link_libraries(protobrain2 PRIVATE no-OS-FatFS-SD-SDIO-SPI-RPi-Pico)
+	target_compile_definitions(protobrain2 PRIVATE USE_SD_CARD)
+	target_sources(protobrain2 PRIVATE src/sd_config.c)
 else()
 	target_sources(protobrain2 PRIVATE src/fake_fs/fake_fs.c)
 	target_include_directories(protobrain2 PRIVATE src/fake_fs)

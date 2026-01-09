@@ -33,6 +33,10 @@
 #include "osd.h"
 #include "work_queue.h"
 
+#ifdef USE_SD_CARD
+#include "sd_config.h"
+#endif
+
 /** Read the ADC sensors at 100Hz, producing average values at 10Hz. */
 #define ADC_READ_PERIOD_MS 10
 /** Update the OSD every 0.5 second */
@@ -62,6 +66,10 @@ int main(void)
     hard_assert(stdio_init_all());
 
     work_queue_init();
+
+#ifdef USE_SD_CARD
+    sd_config_init();
+#endif
 
     adc_sensors_init();
     led_brightness_init(adc_sensors_get_averages().brightness);
