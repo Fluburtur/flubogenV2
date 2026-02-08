@@ -44,6 +44,12 @@
 /* If this changes we'll have to update ButtonsBits (it's currently hard-coded for 8 buttons). */
 #define NUM_BUTTONS 8
 
+enum chording_state_t
+{
+    CHORDING_STATE_IDLE,
+    CHORDING_STATE_COLLECTING,
+};
+
 enum press_state_t
 {
     PRESS_STATE_IDLE,
@@ -73,7 +79,13 @@ static ButtonsBits single_holds;
 static ButtonsBits double_clicks;
 static ButtonsBits double_holds;
 
+static ButtonsBits collected_single_clicks;
+static ButtonsBits collected_single_holds;
+static ButtonsBits collected_double_clicks;
+static ButtonsBits collected_double_holds;
+
 static press_state_t press_state;
+static chording_state_t chording_state;
 static bool locked;
 
 #ifdef CONNECTED_FSM_DEBUGGING
@@ -105,6 +117,7 @@ static void print_buttons_bits(char label1, char label2, ButtonsBits &bits);
 #endif
 
 static void do_idle();
+static void execute_collection();
 
 /***********************
  * Public functions
@@ -133,6 +146,7 @@ void connected_fsm_setup()
     }
 
     press_state = PRESS_STATE_IDLE;
+    chording_state = CHORDING_STATE_IDLE;
     locked = false;
 }
 
@@ -151,11 +165,37 @@ void connected_fsm_do_work()
      * chord. They won't begin the presses at exactly the same time, so at some instant in time
      * Butt2Mod will report a single-click from the earlier button but not the later button.
      *
-     * We'll deal with this in two ways:
-     *   - Use the Press callback to let us know that a click or hold event will arrive soon.
-     *   - When a click or hold event first arrives, start a short chording window and collect any
-     *     click and hold events that arrive within the window. If there is more than one event,
-     *     treat this as a chord, otherwise a non-chord.
+     * We'll deal with this by using the Press callback, which lets us know that a click or hold
+     * event will arrive soon (within Butt2Mod's double-click window, currently 300 ms).
+     *   - The Press callback sets a bit in `future_events`, and the bit is cleared once the
+     *     corresponding click/hold event arrives.
+     *   - When a click or hold event first arrives, collect it and all further click/hold events
+     *     until `future_events` is empty.
+     * This has the effect of combining click/hold events into a chord, as long as each part of the
+     * chord arrives within 300 ms of any other part of the chord.
+     * 
+     * For example, in the fastest case a two-button chord can be input instantaneously and
+     * recognised in 300 ms. Or in the slowest case the chord can be input across 300 ms and
+     * recognised in 600 ms, as in this diagram:
+     *
+     *     user click 1                   user click 2
+     *        |                              |
+     *        v                              v
+     *        ------------300ms----------------
+     *        |    click 1 disambiguation     |
+     *        ---------------------------------
+     *        |                              ------------300ms----------------
+     *        |                              |    click 2 disambiguation     |
+     *        |                              ---------------------------------
+     *        |                              ||                              |
+     *        v                              v|                              v
+     *    future_events        future_events  |              click 2 reported,
+     *    bit 1 is set         bit 2 is set   |              future_events
+     *                                        |              bit 2 is cleared
+     *                                        v
+     *                                     click 1 reported,
+     *                                     future_events
+     *                                     bit 1 is cleared
      */
 
     /* Causes the various cb_ functions to be called when there is button activity. */
@@ -163,7 +203,7 @@ void connected_fsm_do_work()
 
 #ifdef CONNECTED_FSM_DEBUGGING
     do_interactive();
-#else
+#endif
 
     switch (press_state)
     {
@@ -174,7 +214,10 @@ void connected_fsm_do_work()
     default:
         break;
     }
-#endif
+
+    /* Click events don't persist between interations. */
+    single_clicks.clear_all();
+    double_clicks.clear_all();
 }
 
 /***********************
@@ -245,13 +288,10 @@ static void clear_click_tracking()
     double_clicks.clear_all();
     double_holds.clear_all();
 
-#ifdef CONNECTED_FSM_DEBUGGING
-    prev_future_events = future_events.get_raw();
-    prev_single_clicks = single_clicks.get_raw();
-    prev_single_holds = single_holds.get_raw();
-    prev_double_clicks = double_clicks.get_raw();
-    prev_double_holds = double_holds.get_raw();
-#endif
+    collected_single_clicks.clear_all();
+    collected_single_holds.clear_all();
+    collected_double_clicks.clear_all();
+    collected_double_holds.clear_all();
 }
 
 #ifdef CONNECTED_FSM_DEBUGGING
@@ -278,10 +318,6 @@ static void do_interactive()
         print_buttons_bits('H', '2', double_holds);
         Serial.println();
     }
-
-    /* Click events are cleared immediately after printing. */
-    single_clicks.clear_all();
-    double_clicks.clear_all();
 
     prev_future_events = curr_future_events;
     prev_single_clicks = curr_single_clicks;
@@ -320,5 +356,69 @@ static void print_buttons_bits(char label1, char label2, ButtonsBits &bits)
 
 static void do_idle()
 {
-    // TODO
+    collected_single_clicks.set_raw(single_clicks.get_raw());
+    collected_single_holds.set_raw(single_holds.get_raw());
+    collected_double_clicks.set_raw(double_clicks.get_raw());
+    collected_double_holds.set_raw(double_holds.get_raw());
+
+    switch (chording_state)
+    {
+    case CHORDING_STATE_IDLE:
+        if (single_clicks.is_any_set() ||
+            single_holds.is_any_set() ||
+            double_clicks.is_any_set() ||
+            double_holds.is_any_set())
+        {
+            chording_state = CHORDING_STATE_COLLECTING;
+        }
+        else
+        {
+            /* No clicks or holds. Nothing to do this iteration. */
+            return;
+        }
+        /* Fall through */
+        /* if there was at least one click or hold. */
+
+    case CHORDING_STATE_COLLECTING:
+        if (future_events.is_all_clear())
+        {
+            execute_collection();
+        }
+        break;
+    }
+}
+
+static void execute_collection()
+{
+    /* A single-click on just one button. Play the animation once. */
+    int single_click_btn_idx;
+    if (collected_single_clicks.get_single_set(single_click_btn_idx) &&
+        collected_single_holds.is_all_clear() &&
+        collected_double_clicks.is_all_clear() &&
+        collected_double_holds.is_all_clear())
+    {
+#ifdef CONNECTED_FSM_DEBUGGING
+        Serial.println("EXEC 1click");
+#endif
+        uint8_t animation_number = single_click_btn_idx + 1;
+        send_message_play_animation_once(animation_number);
+        clear_click_tracking();
+
+        press_state = PRESS_STATE_IDLE;
+        chording_state = CHORDING_STATE_IDLE;
+        return;
+    }
+
+    else
+    {
+        /* TODO: other combinations.
+         * For now we'll just ignore it. */
+#ifdef CONNECTED_FSM_DEBUGGING
+        Serial.println("EXEC ignore");
+#endif
+        clear_click_tracking();
+        press_state = PRESS_STATE_IDLE;
+        chording_state = CHORDING_STATE_IDLE;
+        return;
+    }
 }

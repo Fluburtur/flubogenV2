@@ -35,6 +35,10 @@ public:
     /* Set the bit for a specific button. */
     void set(int button_idx);
 
+    /* Set the bits for multiple buttons by specifying a mask.
+     * For each bit in the mask that is set, the corresponding button will be set. */
+    void set_raw(uint8_t mask);
+
     /************************
      * Getting and Testing
      ************************/
@@ -62,6 +66,12 @@ public:
      * @return true if there is one button with its bit, and no other buttons have a bit set.
      */
     bool get_single_set(int &button_idx);
+
+    /* Are any bits set? */
+    bool is_any_set();
+
+    /* Are all of the bits clear? */
+    bool is_all_clear();
 
 private:
     uint8_t button_bits;

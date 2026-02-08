@@ -36,6 +36,11 @@ void ButtonsBits::set(int button_idx)
     button_bits |= (uint8_t)(1 << button_idx);
 }
 
+void ButtonsBits::set_raw(uint8_t mask)
+{
+    button_bits |= mask;
+}
+
 uint8_t ButtonsBits::get_raw()
 {
     return button_bits;
@@ -73,4 +78,14 @@ bool ButtonsBits::get_single_set(int &button_idx)
     }
 
     return false;
+}
+
+bool ButtonsBits::is_any_set()
+{
+    return button_bits != 0;
+}
+
+bool ButtonsBits::is_all_clear()
+{
+    return button_bits == 0;
 }
