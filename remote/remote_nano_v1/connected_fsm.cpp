@@ -390,6 +390,24 @@ static void do_idle()
 
 static void execute_collection()
 {
+    /* A double-click on just one button. Toggle locked/unlocked. */
+    int double_click_btn_idx;
+    if (collected_single_clicks.is_all_clear() &&
+        collected_single_holds.is_all_clear() &&
+        collected_double_clicks.get_single_set(double_click_btn_idx) &&
+        collected_double_holds.is_all_clear())
+    {
+        /* TODO: this requires a re-design of the brain-remote protocol.
+         * For now we'll just ignore it. */
+#ifdef CONNECTED_FSM_DEBUGGING
+        Serial.println("EXEC 2click TODO!");
+#endif
+        clear_click_tracking();
+        press_state = PRESS_STATE_IDLE;
+        chording_state = CHORDING_STATE_IDLE;
+        return;
+    }
+
     /* A single-click on just one button. Play the animation once. */
     int single_click_btn_idx;
     if (collected_single_clicks.get_single_set(single_click_btn_idx) &&
