@@ -1,5 +1,7 @@
 /* Sending and receiving messages via the serial. */
 
+#include "config.h"
+
 #include <Arduino.h>
 
 #include "messages.h"
@@ -65,24 +67,42 @@ msg_from_brain_t try_receive_message()
 
 void send_message_hello()
 {
+#ifdef MESSAGES_DEBUGGING_HUMAN_READABLE
+    Serial.println("MSG tx Hello");
+#else
     uint8_t msg[2] = {COMMAND_HELLO, PROTOCOL_VERSION_1};
     Serial.write(msg, 2);
+#endif
 }
 
 void send_message_lock()
 {
+#ifdef MESSAGES_DEBUGGING_HUMAN_READABLE
+    Serial.println("MSG tx Lock");
+#else
     uint8_t msg = COMMAND_LOCK_IDLE;
     Serial.write(msg);
+#endif
 }
 
 void send_message_play_animation_once(uint8_t animation_number)
 {
+#ifdef MESSAGES_DEBUGGING_HUMAN_READABLE
+    Serial.print("MSG tx Play1 ");
+    Serial.println(animation_number);
+#else
     uint8_t msg[2] = {COMMAND_PLAY_ANIMATION_ONCE, animation_number};
     Serial.write(msg, 2);
+#endif
 }
 
 void send_message_play_animation_repeat(uint8_t animation_number)
 {
+#ifdef MESSAGES_DEBUGGING_HUMAN_READABLE
+    Serial.print("MSG tx PlayRep ");
+    Serial.println(animation_number);
+#else
     uint8_t msg[2] = {COMMAND_PLAY_ANIMATION_REPEAT, animation_number};
     Serial.write(msg, 2);
+#endif
 }
