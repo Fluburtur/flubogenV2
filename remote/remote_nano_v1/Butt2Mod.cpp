@@ -81,11 +81,6 @@ void Butt2Mod::setDebounceDuration(unsigned int ms)
     debounce_duration_ms = ms;
 }
 
-void Butt2Mod::setHoldDuration(unsigned int ms)
-{
-    hold_duration_ms = ms;
-}
-
 void Butt2Mod::setDoubleClickDuration(unsigned int ms)
 {
     doubleclick_duration_ms = ms;
@@ -94,11 +89,6 @@ void Butt2Mod::setDoubleClickDuration(unsigned int ms)
 unsigned int Butt2Mod::getDebounceDuration() const
 {
     return debounce_duration_ms;
-}
-
-unsigned int Butt2Mod::getHoldDuration() const
-{
-    return hold_duration_ms;
 }
 
 unsigned int Butt2Mod::getDoubleClickDuration() const
@@ -284,15 +274,15 @@ void Butt2Mod::_whenDown(unsigned long now)
         DO_CALLBACK(press_cb);
     }
 
-    // Hold detection and reporting.
+    // Hold detection and reporting. We intentionally use the double-click window duration here.
     if ((state == b2m_state::single_down) &&
-        (now >= (down1_instant_ms + hold_duration_ms)))
+        (now >= (down1_instant_ms + doubleclick_duration_ms)))
     {
         state = b2m_state::single_hold;
         DO_CALLBACK(single_hold_cb);
     }
     else if ((state == b2m_state::double_down) &&
-             (now >= (down2_instant_ms + hold_duration_ms)))
+             (now >= (down2_instant_ms + doubleclick_duration_ms)))
     {
         state = b2m_state::double_hold;
         DO_CALLBACK(double_hold_cb);

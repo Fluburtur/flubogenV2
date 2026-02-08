@@ -10,11 +10,11 @@
   * Single click (press and release)
     Reported once the button has been released and the double-click window has passed.
   * Single hold (press and hold)
-    Reported as soon as the button has been held for the hold duration.
+    Reported as soon as the button has been held for the duration of the double-click window.
   * Double click (press and release, press and release)
     Reported once the second button has been released.
   * Double hold (press and release, press and hold)
-    Reported as soon as the second button has been held for the hold duration.
+    Reported as soon as the second button has been held for the duration of the double-click window.
   * Hold ended (after finally releasing a single hold or double hold).
 
   "Progress" through the click states is reset after a hold-ended, or after a double-click. So for
@@ -39,7 +39,6 @@
 /////////////////////////////////////////////////////////////////
 
 const unsigned int BTN_DEBOUNCE_MS = 40;
-const unsigned int BTN_HOLD_MS = 200;
 const unsigned int BTN_DOUBLECLICK_MS = 300;
 
 const unsigned int BTN_UNDEFINED_PIN = 255;
@@ -88,7 +87,6 @@ protected:
 
     // unsigned int / uint16_t (2 bytes)
     unsigned int debounce_duration_ms = BTN_DEBOUNCE_MS;
-    unsigned int hold_duration_ms = BTN_HOLD_MS;
     unsigned int doubleclick_duration_ms = BTN_DOUBLECLICK_MS;
 
     // int (2-4 bytes depending on platform)
@@ -117,11 +115,9 @@ public:
         InitCallbackFunction initCallback = NULL);
 
     void setDebounceDuration(unsigned int ms);
-    void setHoldDuration(unsigned int ms);
     void setDoubleClickDuration(unsigned int ms);
 
     unsigned int getDebounceDuration() const;
-    unsigned int getHoldDuration() const;
     unsigned int getDoubleClickDuration() const;
     uint8_t getPin() const;
 

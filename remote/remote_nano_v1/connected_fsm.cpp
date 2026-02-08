@@ -25,7 +25,7 @@
  * etc. See the module-level comments in Butt2Mod.h for more info. Note that this introduces a
  * small delay between performing a single-click and the library reporting it.
  * A double-click requires two presses within a 300 ms window. A hold requires the button to be
- * held for at least 200 ms.
+ * held for at least 300 ms.
  */
 
 #include <Arduino.h>
