@@ -44,6 +44,19 @@
 /* If this changes we'll have to update ButtonsBits (it's currently hard-coded for 8 buttons). */
 #define NUM_BUTTONS 8
 
+/* These definitions are for use with the the `button_map` below.
+ * Turns human names into a value that can be used with ButtonsBits. */
+#define LH1 (1 << 0)
+#define LH2 (1 << 1)
+#define LH3 (1 << 2)
+#define LH4 (1 << 3)
+#define RH1 (1 << 4)
+#define RH2 (1 << 5)
+#define RH3 (1 << 6)
+#define RH4 (1 << 7)
+
+#define ARRAY_NUM_ELEMS(arr) (sizeof(arr)/sizeof(arr[0]))
+
 enum chording_state_t
 {
     CHORDING_STATE_IDLE,
@@ -60,11 +73,33 @@ enum press_state_t
     PRESS_STATE_LOCKED,
 };
 
+typedef struct
+{
+    uint8_t animation_number;
+    uint8_t button_bits;
+} button_map_t;
+
 /***********************
  * Data
  ***********************/
 
 static const uint8_t button_idx_to_pin[NUM_BUTTONS] = {8, 7, 6, 5, A1, A0, 12, 11};
+
+/* Says what button combination will activate each animation number. */
+static const button_map_t button_map[] = {
+    /* Single-button animations. */
+    {1, LH1},
+    {2, LH2},
+    {3, LH3},
+    {4, LH4},
+    {5, RH1},
+    {6, RH2},
+    {7, RH3},
+    {8, RH4},
+    /* Multi-button animations. Combine the buttons with a single | character. */
+    {9, LH1 | LH2},
+    {10, LH1 | RH4}
+};
 
 /***********************
  * Variables
@@ -408,31 +443,75 @@ static void execute_collection()
         return;
     }
 
-    /* A single-click on just one button. Play the animation once. */
-    int single_click_btn_idx;
-    if (collected_single_clicks.get_single_set(single_click_btn_idx) &&
-        collected_single_holds.is_all_clear() &&
-        collected_double_clicks.is_all_clear() &&
-        collected_double_holds.is_all_clear())
+    /* Everything else plays an animation by looking up the collected button combination in the
+     * `button_map`. But there is a bit of nuance to increase usability and deal with some edge
+     * cases. */
+
+    /* If there are any double-clicks we treat them as a single-click. This accounts for the user
+     * accidentally double-clicking, or if their finger slipped, etc.
+     * Likewise we treat double-holds as single-holds. */
+    collected_single_clicks.set_raw(collected_double_clicks.get_raw());
+    collected_single_holds.set_raw(collected_double_holds.get_raw());
+
+    /* If there are any holds, we treat any clicks as holds too. This assumes the user wanted to
+     * do a hold but their finger slipped.
+     * TODO: maybe be a bit more clever? E.g. if there is a mix of holds and click, treat them as
+     * whichever group has the most? */
+    ButtonsBits final_collection;
+    bool do_hold = collected_single_holds.is_any_set();
+    if (do_hold)
     {
-#ifdef CONNECTED_FSM_DEBUGGING
-        Serial.println("EXEC 1click");
-#endif
-        uint8_t animation_number = single_click_btn_idx + 1;
-        send_message_play_animation_once(animation_number);
-        clear_click_tracking();
-
-        press_state = PRESS_STATE_IDLE;
-        chording_state = CHORDING_STATE_IDLE;
-        return;
+        final_collection.set_raw(collected_single_clicks.get_raw());
+        final_collection.set_raw(collected_single_holds.get_raw());
     }
-
     else
     {
-        /* TODO: other combinations.
-         * For now we'll just ignore it. */
+        final_collection.set_raw(collected_single_clicks.get_raw());
+    }
+
+    /* Now we check if the button combination has an associated animation. */
+    uint8_t animation_number;
+    bool found = false;
+    for (size_t i = 0; i < ARRAY_NUM_ELEMS(button_map); i++)
+    {
+        button_map_t entry = button_map[i];
+        if (entry.button_bits == final_collection.get_raw())
+        {
+            found = true;
+            animation_number = entry.animation_number;
+            break;
+        }
+    }
+
+    if (found)
+    {
+        if (do_hold)
+        {
+            /* TODO: support holding buttons for repeated animations. */
 #ifdef CONNECTED_FSM_DEBUGGING
-        Serial.println("EXEC ignore");
+            Serial.println("EXEC hold TODO");
+#endif
+            clear_click_tracking();
+            press_state = PRESS_STATE_IDLE;
+            chording_state = CHORDING_STATE_IDLE;
+            return;
+        }
+        else
+        {
+#ifdef CONNECTED_FSM_DEBUGGING
+            Serial.println("EXEC 1click");
+#endif
+            send_message_play_animation_once(animation_number);
+            clear_click_tracking();
+            press_state = PRESS_STATE_IDLE;
+            chording_state = CHORDING_STATE_IDLE;
+            return;
+        }
+    }
+    else
+    {
+#ifdef CONNECTED_FSM_DEBUGGING
+        Serial.println("EXEC no match");
 #endif
         clear_click_tracking();
         press_state = PRESS_STATE_IDLE;
