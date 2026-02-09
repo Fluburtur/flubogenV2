@@ -63,14 +63,11 @@ enum chording_state_t
     CHORDING_STATE_COLLECTING,
 };
 
-enum press_state_t
+enum action_t
 {
-    PRESS_STATE_IDLE,
-    PRESS_STATE_PLAYING_REPEAT,
-    PRESS_STATE_SINGLE_CHORD_START,
-    PRESS_STATE_REPEAT_CHORD_START,
-    PRESS_STATE_IGNORE_UNTIL_ALL_RELEASED,
-    PRESS_STATE_LOCKED,
+    ACTION_NONE,
+    ACTION_PLAYING_REPEAT,
+    ACTION_WAIT_UNTIL_ALL_RELEASED,
 };
 
 typedef struct
@@ -119,7 +116,7 @@ static ButtonsBits collected_single_holds;
 static ButtonsBits collected_double_clicks;
 static ButtonsBits collected_double_holds;
 
-static press_state_t press_state;
+static action_t current_action;
 static chording_state_t chording_state;
 static bool locked;
 
@@ -153,6 +150,8 @@ static void print_buttons_bits(char label1, char label2, ButtonsBits &bits);
 
 static void do_idle();
 static void execute_collection();
+static void do_playing_repeat();
+static void do_wait_until_all_released();
 
 /***********************
  * Public functions
@@ -180,7 +179,7 @@ void connected_fsm_setup()
         btn.begin(button_idx_to_pin[i]);
     }
 
-    press_state = PRESS_STATE_IDLE;
+    current_action = ACTION_NONE;
     chording_state = CHORDING_STATE_IDLE;
     locked = false;
 }
@@ -240,13 +239,18 @@ void connected_fsm_do_work()
     do_interactive();
 #endif
 
-    switch (press_state)
+    switch (current_action)
     {
-    case PRESS_STATE_IDLE:
+    case ACTION_NONE:
         do_idle();
         break;
 
-    default:
+    case ACTION_PLAYING_REPEAT:
+        do_playing_repeat();
+        break;
+
+    case ACTION_WAIT_UNTIL_ALL_RELEASED:
+        do_wait_until_all_released();
         break;
     }
 
@@ -389,6 +393,8 @@ static void print_buttons_bits(char label1, char label2, ButtonsBits &bits)
 }
 #endif
 
+/* Either nothing is happening, or we're receiving button press/click events and we're waiting for
+ * them to stop. */
 static void do_idle()
 {
     collected_single_clicks.set_raw(single_clicks.get_raw());
@@ -417,6 +423,7 @@ static void do_idle()
     case CHORDING_STATE_COLLECTING:
         if (future_events.is_all_clear())
         {
+            /* The press/click events have stopped. Act on them. */
             execute_collection();
         }
         break;
@@ -425,7 +432,7 @@ static void do_idle()
 
 static void execute_collection()
 {
-    /* A double-click on just one button. Toggle locked/unlocked. */
+    /* A double-click on just one button. Toggle locked/unlocked and early return. */
     int double_click_btn_idx;
     if (collected_single_clicks.is_all_clear() &&
         collected_single_holds.is_all_clear() &&
@@ -438,7 +445,7 @@ static void execute_collection()
         Serial.println("EXEC 2click TODO!");
 #endif
         clear_click_tracking();
-        press_state = PRESS_STATE_IDLE;
+        current_action = ACTION_NONE;
         chording_state = CHORDING_STATE_IDLE;
         return;
     }
@@ -487,14 +494,12 @@ static void execute_collection()
     {
         if (do_hold)
         {
-            /* TODO: support holding buttons for repeated animations. */
+            /* Holding button(s). Play animation on repeat until they let go. */
 #ifdef CONNECTED_FSM_DEBUGGING
-            Serial.println("EXEC hold TODO");
+            Serial.println("EXEC hold");
 #endif
-            clear_click_tracking();
-            press_state = PRESS_STATE_IDLE;
-            chording_state = CHORDING_STATE_IDLE;
-            return;
+            send_message_play_animation_repeat(animation_number);
+            current_action = ACTION_PLAYING_REPEAT;
         }
         else
         {
@@ -503,9 +508,8 @@ static void execute_collection()
 #endif
             send_message_play_animation_once(animation_number);
             clear_click_tracking();
-            press_state = PRESS_STATE_IDLE;
+            current_action = ACTION_NONE;
             chording_state = CHORDING_STATE_IDLE;
-            return;
         }
     }
     else
@@ -513,9 +517,59 @@ static void execute_collection()
 #ifdef CONNECTED_FSM_DEBUGGING
         Serial.println("EXEC no match");
 #endif
+        if (do_hold)
+        {
+            /* If anything is held, wait until all released. */
+#ifdef CONNECTED_FSM_DEBUGGING
+            Serial.println("EXEC wait release");
+#endif
+            current_action = ACTION_WAIT_UNTIL_ALL_RELEASED;
+        }
+        else
+        {
+            /* Nothing held, can immediately begin listening for presses again. */
+            clear_click_tracking();
+            current_action = ACTION_NONE;
+            chording_state = CHORDING_STATE_IDLE;
+        }
+    }
+}
+
+/* "Play Animation Repeat" has been sent and buttons are held.
+ * When the buttons are released, stop the animation. */
+static void do_playing_repeat()
+{
+    if (single_clicks.is_all_clear() &&
+        single_holds.is_all_clear() &&
+        double_clicks.is_all_clear() &&
+        double_holds.is_all_clear() &&
+        future_events.is_all_clear())
+    {
+#ifdef CONNECTED_FSM_DEBUGGING
+        Serial.println("EXEC released");
+#endif
+        send_message_end_animation();
         clear_click_tracking();
-        press_state = PRESS_STATE_IDLE;
+        current_action = ACTION_NONE;
         chording_state = CHORDING_STATE_IDLE;
-        return;
+    }
+}
+
+/* Nothing useful is happening, but buttons are held.
+ * When the buttons are released we can begin listening for presses again. */
+static void do_wait_until_all_released()
+{
+    if (single_clicks.is_all_clear() &&
+        single_holds.is_all_clear() &&
+        double_clicks.is_all_clear() &&
+        double_holds.is_all_clear() &&
+        future_events.is_all_clear())
+    {
+#ifdef CONNECTED_FSM_DEBUGGING
+        Serial.println("EXEC released");
+#endif
+        clear_click_tracking();
+        current_action = ACTION_NONE;
+        chording_state = CHORDING_STATE_IDLE;
     }
 }

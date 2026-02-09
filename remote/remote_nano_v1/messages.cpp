@@ -22,6 +22,7 @@
 #define COMMAND_HELLO 0xE1
 #define COMMAND_PLAY_ANIMATION_ONCE 0x01
 #define COMMAND_PLAY_ANIMATION_REPEAT 0x02
+#define COMMAND_END_ANIMATION 0x03
 #define COMMAND_LOCK_IDLE 0x04
 
 /***********************
@@ -104,5 +105,15 @@ void send_message_play_animation_repeat(uint8_t animation_number)
 #else
     uint8_t msg[2] = {COMMAND_PLAY_ANIMATION_REPEAT, animation_number};
     Serial.write(msg, 2);
+#endif
+}
+
+void send_message_end_animation()
+{
+#ifdef MESSAGES_DEBUGGING_HUMAN_READABLE
+    Serial.println("MSG tx EndAnim");
+#else
+    uint8_t msg = COMMAND_END_ANIMATION;
+    Serial.write(msg);
 #endif
 }

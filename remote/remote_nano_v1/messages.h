@@ -12,3 +12,4 @@ void send_message_hello();
 void send_message_lock();
 void send_message_play_animation_once(uint8_t animation_number);
 void send_message_play_animation_repeat(uint8_t animation_number);
+void send_message_end_animation();
