@@ -23,7 +23,7 @@
 #define COMMAND_PLAY_ANIMATION_ONCE 0x01
 #define COMMAND_PLAY_ANIMATION_REPEAT 0x02
 #define COMMAND_END_ANIMATION 0x03
-#define COMMAND_LOCK_IDLE 0x04
+#define COMMAND_TOGGLE_LOCK 0x04
 
 /***********************
  * Data
@@ -76,12 +76,12 @@ void send_message_hello()
 #endif
 }
 
-void send_message_lock()
+void send_message_toggle_lock()
 {
 #ifdef MESSAGES_DEBUGGING_HUMAN_READABLE
-    Serial.println("MSG tx Lock");
+    Serial.println("MSG tx ToggleLock");
 #else
-    uint8_t msg = COMMAND_LOCK_IDLE;
+    uint8_t msg = COMMAND_TOGGLE_LOCK;
     Serial.write(msg);
 #endif
 }

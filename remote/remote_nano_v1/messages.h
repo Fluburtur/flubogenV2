@@ -9,7 +9,7 @@ enum msg_from_brain_t {
 msg_from_brain_t try_receive_message();
 
 void send_message_hello();
-void send_message_lock();
+void send_message_toggle_lock();
 void send_message_play_animation_once(uint8_t animation_number);
 void send_message_play_animation_repeat(uint8_t animation_number);
 void send_message_end_animation();

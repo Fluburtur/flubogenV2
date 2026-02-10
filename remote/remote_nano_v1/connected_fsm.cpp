@@ -118,7 +118,6 @@ static ButtonsBits collected_double_holds;
 
 static action_t current_action;
 static chording_state_t chording_state;
-static bool locked;
 
 #ifdef CONNECTED_FSM_DEBUGGING
 /* These store the ButtonsBits values from the previous iteration.
@@ -181,7 +180,6 @@ void connected_fsm_setup()
 
     current_action = ACTION_NONE;
     chording_state = CHORDING_STATE_IDLE;
-    locked = false;
 }
 
 void connected_fsm_do_work()
@@ -439,11 +437,14 @@ static void execute_collection()
         collected_double_clicks.get_single_set(double_click_btn_idx) &&
         collected_double_holds.is_all_clear())
     {
-        /* TODO: this requires a re-design of the brain-remote protocol.
-         * For now we'll just ignore it. */
 #ifdef CONNECTED_FSM_DEBUGGING
-        Serial.println("EXEC 2click TODO!");
+        Serial.println("EXEC 2click!");
 #endif
+        /* The remote doesn't need to enter a special state or track whether the lock/unlock was
+         * successful. By design of the protocol, the remote can continue to send all of the
+         * usual commands; the brain will just ignore the "play animation" commands if it's
+         * locked. */
+        send_message_toggle_lock();
         clear_click_tracking();
         current_action = ACTION_NONE;
         chording_state = CHORDING_STATE_IDLE;

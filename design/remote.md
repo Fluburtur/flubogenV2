@@ -127,34 +127,23 @@ If a repeated animation is not playing then the command is ignored.
 | ------------ |
 | 0x03         |
 
-### Lock Idle
+### Toggle Lock
 
 Direction: remote to brain  
 Response: none
 
-Causes the brain to enter the idle animation, then stay there at the current brightness.
-Other animation commands are ignored while in this state.
-Use "unlock" to stop this.
+Request the brain to toggle between the locked and unlocked states.
 
-If an animation is still playing from a previous command then the command is ignored.
+* If the brain is unlocked but an animation is still playing from a previous command then the
+  toggle command is ignored. The brain stays unlocked.
+* If the brain is unlocked and playing a random animation then it stops the random animation and enters the locked state.
+* If the brain is unlocked and idle then it enters the locked state.
+* If the brain is locked then it unlocks.
+
+In the locked state the LED brightness does not change, the idle animation plays, and other animation commands are ignored. This is intended to make photography easier.
+
+In the unlocked state the LED brightness may auto-adjust, the random animations may play, and animation commands from the remote are processed.
 
 | Command byte |
 | ------------ |
 | 0x04         |
-
-#### Intent
-
-Makes photogaphy easier.
-
-### Unlock
-
-Direction: remote to brain  
-Response: none
-
-Exit the "lock idle" state.
-
-If the brain is not in the "lock idle" state then this command is ignored.
-
-| Command byte |
-| ------------ |
-| 0x05         |
