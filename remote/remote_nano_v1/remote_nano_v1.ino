@@ -1,3 +1,8 @@
+/* Implements the remote protocol version 1 for an eight button remote.
+ *
+ * The meat is in connected_fsm.cpp -- go there to change the button mapping.
+ */
+
 #include "config.h"
 
 #include "connected_fsm.h"
@@ -7,8 +12,7 @@
  * Defines and types
  ***********************/
 
-#define HELLO_INTERVAL_MS 1000
-
+/** The connection state between the remote and brain. */
 enum connection_state_t
 {
     STATE_UNCONNECTED,
@@ -19,7 +23,9 @@ enum connection_state_t
  * Variables
  ***********************/
 
+/** The time at which we last sent a Hello message. */
 unsigned long last_hello;
+/** The current connection state between the remote and brain. */
 static connection_state_t connection_state;
 
 /***********************

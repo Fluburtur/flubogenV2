@@ -1,4 +1,4 @@
-/* The buttons used on the remote are:
+/* The eight buttons used on the remote are:
  *   Index  Label  IO pin  Port
  *     0     LH1     D8     PB0
  *     1     LH2     D7     PD7
@@ -10,16 +10,21 @@
  *     7     RH4     D11    PB3
  *
  *
- * 1. When pressing a single button, play command animations 1 to 8 (there are 8 buttons).
- * 2. When pressing several buttons at once (we call that "chording"), play command animations 9 to
- *    whatever. The upper limit of animations is only bounded by how many unique button press
- *    combinations there are.
- * 3. When holding a button or chord, the selected animation will keep playing on repeat and can't
+ * 1. You can play an animation once by single-clicking one or more buttons. Pressing multiple
+ *    buttons at a time is called a "chord" or "chording" in this file.
+ * 2. If you hold a button or a chord, the selected animation will keep playing on repeat and can't
  *    be interrupted until the buttons are released.
- * 4. When an animation is started by the remote it always plays to completion.
- * 5. When double clicking any button, lock the idle animation as it currently is so it cant be
- *    interrupted or change brightness until double clicking again.
- * 6. When a remote-triggered animation finishes playing, go back to the idle animation.
+ * 3. When an animation is started by the remote it always plays to completion.
+ * 4. When a remote-triggered animation finishes playing, the face goes back to the idle animation.
+ * 5. You can double-click any single button to toggle between locked and unlocked, as long as
+ *    one of the remote animations isn't playing. When locked, the LED brightness doesn't change
+ *    and the idle animation always plays -- so you can't play another animation until you
+ *    double-click again to unlock.
+ *
+ * To choose which animations play when you press different buttons and chords, see the
+ * `button_map` below. This is a list with entries that look like `{1, LH1}` or `{1, LH1 | RH 1}`.
+ * The first number is the animation number. Then there's a single button label, or multiple button
+ * labels joined with a | character.
  *
  * We use a button library for debouncing and distinguishing between single-click/hold/double-click
  * etc. See the module-level comments in Butt2Mod.h for more info. Note that this introduces a
@@ -55,14 +60,21 @@
 #define RH3 (1 << 6)
 #define RH4 (1 << 7)
 
-#define ARRAY_NUM_ELEMS(arr) (sizeof(arr)/sizeof(arr[0]))
+#define ARRAY_NUM_ELEMS(arr) (sizeof(arr) / sizeof(arr[0]))
 
+/* Whether we are collecting clicks/holds over time to check for a chord, or not. */
 enum chording_state_t
 {
     CHORDING_STATE_IDLE,
     CHORDING_STATE_COLLECTING,
 };
 
+/* A high-level action that we're doing.
+ *
+ * Except for `ACTION_NONE`, these represent something that we're doing across several iterations
+ * of `connected_fsm_do_work()`.
+ * `ACTION_NONE` means we're doing nothing, or doing something that finishes within the current
+ * iteration. */
 enum action_t
 {
     ACTION_NONE,
@@ -95,22 +107,28 @@ static const button_map_t button_map[] = {
     {8, RH4},
     /* Multi-button animations. Combine the buttons with a single | character. */
     {9, LH1 | LH2},
-    {10, LH1 | RH4}
+    {10, LH1 | RH4},
 };
 
 /***********************
  * Variables
  ***********************/
 
+/* Button debouncing and click/hold detection. */
 static Butt2Mod buttons[NUM_BUTTONS];
 
 /* Tracks that we expect a click/hold event soon. */
 static ButtonsBits future_events;
+/* Single-clicks that we saw this iteration. */
 static ButtonsBits single_clicks;
+/* Single-holds that are currently active (persists until released). */
 static ButtonsBits single_holds;
+/* Double-clicks that we saw this iteration. */
 static ButtonsBits double_clicks;
+/* Double-holds that are currently active (persists until released). */
 static ButtonsBits double_holds;
 
+/* Like the bare `single_clicks`, but collected over time to see if it forms a chord. */
 static ButtonsBits collected_single_clicks;
 static ButtonsBits collected_single_holds;
 static ButtonsBits collected_double_clicks;
@@ -205,7 +223,7 @@ void connected_fsm_do_work()
      *     until `future_events` is empty.
      * This has the effect of combining click/hold events into a chord, as long as each part of the
      * chord arrives within 300 ms of any other part of the chord.
-     * 
+     *
      * For example, in the fastest case a two-button chord can be input instantaneously and
      * recognised in 300 ms. Or in the slowest case the chord can be input across 300 ms and
      * recognised in 600 ms, as in this diagram:
@@ -261,6 +279,8 @@ void connected_fsm_do_work()
  * Private functions
  ***********************/
 
+/* Debounce buttons and detect click/hold/etc.
+ * Detection causes the various cb_ functions below to be called. */
 static void update_buttons()
 {
     for (uint8_t i = 0; i < NUM_BUTTONS; i++)
@@ -272,9 +292,8 @@ static void update_buttons()
 
 static void cb_future_event(Butt2Mod &btn)
 {
-    // A press has occurred -- button has gone unpressed to pressed and isn't bouncing.
-    // That means we'll get one of the click/hold events soon.
-
+    /* A press has occurred -- button has gone unpressed to pressed and isn't bouncing.
+     * That means we'll get one of the click/hold events soon. */
     future_events.set(btn.getID());
 }
 
@@ -332,6 +351,8 @@ static void clear_click_tracking()
 }
 
 #ifdef CONNECTED_FSM_DEBUGGING
+/* Print some nice stuff on the console so we can see if the click/hold/release
+ * detection is working. */
 static void do_interactive()
 {
     uint8_t curr_future_events = future_events.get_raw();
@@ -391,8 +412,8 @@ static void print_buttons_bits(char label1, char label2, ButtonsBits &bits)
 }
 #endif
 
-/* Either nothing is happening, or we're receiving button press/click events and we're waiting for
- * them to stop. */
+/* Either nothing is happening, or we're collecting button click/hold events (and waiting for them
+ * to stop). */
 static void do_idle()
 {
     collected_single_clicks.set_raw(single_clicks.get_raw());
@@ -428,6 +449,7 @@ static void do_idle()
     }
 }
 
+/* We've finished collecting clicks/holds. See what we have, and act appropriately. */
 static void execute_collection()
 {
     /* A double-click on just one button. Toggle locked/unlocked and early return. */
@@ -513,7 +535,7 @@ static void execute_collection()
             chording_state = CHORDING_STATE_IDLE;
         }
     }
-    else
+    else /* There is no animation for this button combination. */
     {
 #ifdef CONNECTED_FSM_DEBUGGING
         Serial.println("EXEC no match");

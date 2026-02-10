@@ -1,5 +1,3 @@
-/* Sending and receiving messages via the serial. */
-
 #include "config.h"
 
 #include <Arduino.h>
