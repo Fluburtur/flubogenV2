@@ -38,6 +38,10 @@
 #include "sd_config.h"
 #endif
 
+/***********************
+ * Defines and types
+ ***********************/
+
 /** Read the ADC sensors at 100Hz, producing average values at 10Hz. */
 #define ADC_READ_PERIOD_MS 10
 /** Update the OSD every 0.5 second */
@@ -58,6 +62,10 @@ typedef enum
 } main_work_item_command_t;
 static_assert(sizeof(main_work_item_command_t) <= sizeof(work_command_t), "too big");
 
+/***********************
+ * Variables
+ ***********************/
+
 static repeating_timer_t face_animation_timer;
 static repeating_timer_t adc_read_timer;
 static repeating_timer_t osd_update_timer;
@@ -67,10 +75,22 @@ static alarm_id_t random_animation_timer;
 static atomic_bool is_random_animation_timer_running;
 static bool want_random_animation;
 
+static uint16_t animation_period_ms;
+static ws2812b_led_value_t logo_colour;
+
+/***********************
+ * Function prototypes
+ ***********************/
+
+static void do_work(work_item_t work);
 static bool face_animation_callback(repeating_timer_t *timer);
 static bool adc_read_callback(repeating_timer_t *timer);
 static bool osd_update_callback(repeating_timer_t *timer);
 static int64_t random_animation_callback(alarm_id_t id, void *user_data);
+
+/***********************
+ * Public functions
+ ***********************/
 
 int main(void)
 {
@@ -89,7 +109,7 @@ int main(void)
     sleep_ms(1);
 
     /* For now, just set the cheek and body logos to a fixed colour. */
-    ws2812b_led_value_t logo_colour = {.r = 0, .g = 0, .b = led_brightness_get_logo_value()};
+    logo_colour = (ws2812b_led_value_t){.r = 0, .g = 0, .b = led_brightness_get_logo_value()};
     leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
     leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
     leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
@@ -98,7 +118,7 @@ int main(void)
 
     /* Start the boot animation. */
     hard_assert(animationInit());
-    uint16_t animation_period_ms = startAnimation(BOOT_ANIMATION);
+    animation_period_ms = startAnimation(BOOT_ANIMATION);
     hard_assert(animation_period_ms != 0);
 
     /* Start the timers last, so we don't accumulate lots of work during any slow parts of init. */
@@ -115,111 +135,121 @@ int main(void)
     while (true)
     {
         work_item_t work = work_queue_remove_blocking();
-        if (work.destination == WORK_MODULE_MAIN)
+        switch (work.destination)
         {
-            main_work_item_command_t command = (main_work_item_command_t)work.command;
-            switch (command)
-            {
-            case WORK_ITEM_ANIMATE_FACE_FRAME:
-            {
-                bool finished = updateAnimation();
-                if (finished)
-                {
-                    cancel_repeating_timer(&face_animation_timer);
-
-                    uint8_t next_animation = DEFAULT_ANIMATION;
-                    bool starting_random = false;
-
-                    if (want_random_animation)
-                    {
-                        starting_random = true;
-                        want_random_animation = false;
-
-                        switch (rand() % 4)
-                        {
-                        case 0:
-                            next_animation = RANDOM_ANIMATION_1;
-                            break;
-                        case 1:
-                            next_animation = RANDOM_ANIMATION_2;
-                            break;
-                        case 2:
-                            next_animation = RANDOM_ANIMATION_3;
-                            break;
-                        default:
-                            /* Intentionally have a chance to pick the default animation. */
-                            next_animation = DEFAULT_ANIMATION;
-                            break;
-                        }
-                    }
-
-                    animation_period_ms = startAnimation(next_animation);
-                    hard_assert(
-                        add_repeating_timer_ms(
-                            animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
-
-                    /* We start the random animation timer if it's not already running and we didn't
-                     * just start a random animation. In practice this means we start the timer at the
-                     * end of the boot animation, and then at the end of each random animation.
-                     * We do it like this so the time between random animations is correct if any of
-                     * the animations are long (which they are). */
-                    if (!starting_random && !is_random_animation_timer_running)
-                    {
-                        random_animation_timer = add_alarm_in_ms(
-                            RANDOM_ANIMATION_PERIOD_MS, random_animation_callback, NULL, true);
-                        hard_assert(random_animation_timer > 0);
-                        is_random_animation_timer_running = true;
-                    }
-                }
-            }
+        case WORK_MODULE_MAIN:
+            do_work(work);
             break;
 
-            case WORK_ITEM_REQUEST_RANDOM_ANIMATION:
-                want_random_animation = true;
-                break;
-
-            case WORK_ITEM_READ_ADC_SENSORS:
-            {
-                bool averages_updated = adc_sensors_read();
-                if (averages_updated)
-                {
-                    led_brightness_update(adc_sensors_get_averages().brightness);
-
-                    /* Logo auto-brightness adjustment. Still a fixed colour. */
-                    logo_colour.b = led_brightness_get_logo_value();
-                    leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
-                    leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
-                    leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
-                }
-            }
-            break;
-
-            case WORK_ITEM_UPDATE_OSD:
-            {
-                uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
-                const uint8_t fake_remote_data[] = {0, 0};
-                osd_update(
-                    adc_sensors_get_averages().battery_v,
-                    ms_since_boot,
-                    animation_get_current_name(),
-                    fake_remote_data);
-            }
-            break;
-
-            default:
-            {
-                /* Unrecognised work, something has gone wrong. */
-                hard_assert(false);
-                break;
-            }
-            }
-        }
-        else
-        {
+        default:
             /* Unrecognised destination, something has gone wrong. */
             hard_assert(false);
             break;
         }
+    }
+}
+
+/***********************
+ * Private functions
+ ***********************/
+
+static void do_work(work_item_t work)
+{
+    main_work_item_command_t command = (main_work_item_command_t)work.command;
+    switch (command)
+    {
+    case WORK_ITEM_ANIMATE_FACE_FRAME:
+    {
+        bool finished = updateAnimation();
+        if (finished)
+        {
+            cancel_repeating_timer(&face_animation_timer);
+
+            uint8_t next_animation = DEFAULT_ANIMATION;
+            bool starting_random = false;
+
+            if (want_random_animation)
+            {
+                starting_random = true;
+                want_random_animation = false;
+
+                switch (rand() % 4)
+                {
+                case 0:
+                    next_animation = RANDOM_ANIMATION_1;
+                    break;
+                case 1:
+                    next_animation = RANDOM_ANIMATION_2;
+                    break;
+                case 2:
+                    next_animation = RANDOM_ANIMATION_3;
+                    break;
+                default:
+                    /* Intentionally have a chance to pick the default animation. */
+                    next_animation = DEFAULT_ANIMATION;
+                    break;
+                }
+            }
+
+            animation_period_ms = startAnimation(next_animation);
+            hard_assert(
+                add_repeating_timer_ms(
+                    animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
+
+            /* We start the random animation timer if it's not already running and we didn't
+             * just start a random animation. In practice this means we start the timer at the
+             * end of the boot animation, and then at the end of each random animation.
+             * We do it like this so the time between random animations is correct if any of
+             * the animations are long (which they are). */
+            if (!starting_random && !is_random_animation_timer_running)
+            {
+                random_animation_timer = add_alarm_in_ms(
+                    RANDOM_ANIMATION_PERIOD_MS, random_animation_callback, NULL, true);
+                hard_assert(random_animation_timer > 0);
+                is_random_animation_timer_running = true;
+            }
+        }
+    }
+    break;
+
+    case WORK_ITEM_REQUEST_RANDOM_ANIMATION:
+        want_random_animation = true;
+        break;
+
+    case WORK_ITEM_READ_ADC_SENSORS:
+    {
+        bool averages_updated = adc_sensors_read();
+        if (averages_updated)
+        {
+            led_brightness_update(adc_sensors_get_averages().brightness);
+
+            /* Logo auto-brightness adjustment. Still a fixed colour. */
+            logo_colour.b = led_brightness_get_logo_value();
+            leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
+            leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
+            leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
+        }
+    }
+    break;
+
+    case WORK_ITEM_UPDATE_OSD:
+    {
+        uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
+        const uint8_t fake_remote_data[] = {0, 0};
+        osd_update(
+            adc_sensors_get_averages().battery_v,
+            ms_since_boot,
+            animation_get_current_name(),
+            fake_remote_data);
+    }
+    break;
+
+    default:
+    {
+        /* Unrecognised work, something has gone wrong. */
+        hard_assert(false);
+        break;
+    }
     }
 }
 
