@@ -18,6 +18,7 @@
 //   Red 0.47  Green 0.28  Blue 1.0
 // I won't do the brightness equalisation now, though.
 
+#include <assert.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -46,6 +47,16 @@
 
 #define REPEATING_TIMER_CONTINUE true
 #define ALARM_STOP 0
+#define ALARM_RESCHEDULE_AFTER_MS(ms) (-(ms))
+
+typedef enum
+{
+    WORK_ITEM_ANIMATE_FACE_FRAME,
+    WORK_ITEM_REQUEST_RANDOM_ANIMATION,
+    WORK_ITEM_READ_ADC_SENSORS,
+    WORK_ITEM_UPDATE_OSD,
+} main_work_item_command_t;
+static_assert(sizeof(main_work_item_command_t) <= sizeof(work_command_t), "too big");
 
 static repeating_timer_t face_animation_timer;
 static repeating_timer_t adc_read_timer;
@@ -104,100 +115,110 @@ int main(void)
     while (true)
     {
         work_item_t work = work_queue_remove_blocking();
-        switch (work)
+        if (work.destination == WORK_MODULE_MAIN)
         {
-        case WORK_ITEM_ANIMATE_FACE_FRAME:
-        {
-            bool finished = updateAnimation();
-            if (finished)
+            main_work_item_command_t command = (main_work_item_command_t)work.command;
+            switch (command)
             {
-                cancel_repeating_timer(&face_animation_timer);
-
-                uint8_t next_animation = DEFAULT_ANIMATION;
-                bool starting_random = false;
-
-                if (want_random_animation)
+            case WORK_ITEM_ANIMATE_FACE_FRAME:
+            {
+                bool finished = updateAnimation();
+                if (finished)
                 {
-                    starting_random = true;
-                    want_random_animation = false;
+                    cancel_repeating_timer(&face_animation_timer);
 
-                    switch (rand() % 4)
+                    uint8_t next_animation = DEFAULT_ANIMATION;
+                    bool starting_random = false;
+
+                    if (want_random_animation)
                     {
-                    case 0:
-                        next_animation = RANDOM_ANIMATION_1;
-                        break;
-                    case 1:
-                        next_animation = RANDOM_ANIMATION_2;
-                        break;
-                    case 2:
-                        next_animation = RANDOM_ANIMATION_3;
-                        break;
-                    default:
-                        /* Intentionally have a chance to pick the default animation. */
-                        next_animation = DEFAULT_ANIMATION;
-                        break;
+                        starting_random = true;
+                        want_random_animation = false;
+
+                        switch (rand() % 4)
+                        {
+                        case 0:
+                            next_animation = RANDOM_ANIMATION_1;
+                            break;
+                        case 1:
+                            next_animation = RANDOM_ANIMATION_2;
+                            break;
+                        case 2:
+                            next_animation = RANDOM_ANIMATION_3;
+                            break;
+                        default:
+                            /* Intentionally have a chance to pick the default animation. */
+                            next_animation = DEFAULT_ANIMATION;
+                            break;
+                        }
+                    }
+
+                    animation_period_ms = startAnimation(next_animation);
+                    hard_assert(
+                        add_repeating_timer_ms(
+                            animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
+
+                    /* We start the random animation timer if it's not already running and we didn't
+                     * just start a random animation. In practice this means we start the timer at the
+                     * end of the boot animation, and then at the end of each random animation.
+                     * We do it like this so the time between random animations is correct if any of
+                     * the animations are long (which they are). */
+                    if (!starting_random && !is_random_animation_timer_running)
+                    {
+                        random_animation_timer = add_alarm_in_ms(
+                            RANDOM_ANIMATION_PERIOD_MS, random_animation_callback, NULL, true);
+                        hard_assert(random_animation_timer > 0);
+                        is_random_animation_timer_running = true;
                     }
                 }
+            }
+            break;
 
-                animation_period_ms = startAnimation(next_animation);
-                hard_assert(
-                    add_repeating_timer_ms(
-                        animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
+            case WORK_ITEM_REQUEST_RANDOM_ANIMATION:
+                want_random_animation = true;
+                break;
 
-                /* We start the random animation timer if it's not already running and we didn't
-                 * just start a random animation. In practice this means we start the timer at the
-                 * end of the boot animation, and then at the end of each random animation.
-                 * We do it like this so the time between random animations is correct if any of
-                 * the animations are long (which they are). */
-                if (!starting_random && !is_random_animation_timer_running)
+            case WORK_ITEM_READ_ADC_SENSORS:
+            {
+                bool averages_updated = adc_sensors_read();
+                if (averages_updated)
                 {
-                    random_animation_timer = add_alarm_in_ms(
-                        RANDOM_ANIMATION_PERIOD_MS, random_animation_callback, NULL, true);
-                    hard_assert(random_animation_timer > 0);
-                    is_random_animation_timer_running = true;
+                    led_brightness_update(adc_sensors_get_averages().brightness);
+
+                    /* Logo auto-brightness adjustment. Still a fixed colour. */
+                    logo_colour.b = led_brightness_get_logo_value();
+                    leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
+                    leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
+                    leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
                 }
             }
-        }
-        break;
-
-        case WORK_ITEM_REQUEST_RANDOM_ANIMATION:
-            want_random_animation = true;
             break;
 
-        case WORK_ITEM_READ_ADC_SENSORS:
-        {
-            bool averages_updated = adc_sensors_read();
-            if (averages_updated)
+            case WORK_ITEM_UPDATE_OSD:
             {
-                led_brightness_update(adc_sensors_get_averages().brightness);
+                uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
+                const uint8_t fake_remote_data[] = {0, 0};
+                osd_update(
+                    adc_sensors_get_averages().battery_v,
+                    ms_since_boot,
+                    animation_get_current_name(),
+                    fake_remote_data);
+            }
+            break;
 
-                /* Logo auto-brightness adjustment. Still a fixed colour. */
-                logo_colour.b = led_brightness_get_logo_value();
-                leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
-                leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
-                leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
+            default:
+            {
+                /* Unrecognised work, something has gone wrong. */
+                hard_assert(false);
+                break;
+            }
             }
         }
-        break;
-
-        case WORK_ITEM_UPDATE_OSD:
+        else
         {
-            uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
-            const uint8_t fake_remote_data[] = {0, 0};
-            osd_update(
-                adc_sensors_get_averages().battery_v,
-                ms_since_boot,
-                animation_get_current_name(),
-                fake_remote_data);
-        }
-        break;
-
-        default:
-        {
-            /* Unrecognised work, something has gone wrong. */
+            /* Unrecognised destination, something has gone wrong. */
             hard_assert(false);
             break;
-        }
         }
     }
 }
@@ -205,8 +226,13 @@ int main(void)
 static bool face_animation_callback(repeating_timer_t *timer)
 {
     (void)timer;
-    work_queue_add(WORK_ITEM_ANIMATE_FACE_FRAME);
-    /* Assume we want to draw more frames. */
+    work_item_t work = {
+        .destination = WORK_MODULE_MAIN,
+        .command = WORK_ITEM_ANIMATE_FACE_FRAME,
+    };
+    work_queue_try_add(work);
+    /* Assume we want to draw more frames. If the work queue is full this just results in a
+     * temporarily lower framerate. */
     return REPEATING_TIMER_CONTINUE;
 }
 
@@ -214,23 +240,44 @@ static int64_t random_animation_callback(alarm_id_t id, void *user_data)
 {
     (void)id;
     (void)user_data;
-    work_queue_add(WORK_ITEM_REQUEST_RANDOM_ANIMATION);
-    is_random_animation_timer_running = false;
-    return ALARM_STOP;
+    work_item_t work = {
+        .destination = WORK_MODULE_MAIN,
+        .command = WORK_ITEM_REQUEST_RANDOM_ANIMATION,
+    };
+    if (work_queue_try_add(work))
+    {
+        is_random_animation_timer_running = false;
+        return ALARM_STOP;
+    }
+    else
+    {
+        /* If the work queue is full we'll try again later. */
+        return ALARM_RESCHEDULE_AFTER_MS(RANDOM_ANIMATION_PERIOD_MS);
+    }
 }
 
 static bool adc_read_callback(repeating_timer_t *timer)
 {
     (void)timer;
-    work_queue_add(WORK_ITEM_READ_ADC_SENSORS);
-    /* We never want to stop. */
+    work_item_t work = {
+        .destination = WORK_MODULE_MAIN,
+        .command = WORK_ITEM_READ_ADC_SENSORS,
+    };
+    work_queue_try_add(work);
+    /* We never want to stop. If the work queue is full this just results in temporarily slower
+     * brightness updates. */
     return REPEATING_TIMER_CONTINUE;
 }
 
 static bool osd_update_callback(repeating_timer_t *timer)
 {
     (void)timer;
-    work_queue_add(WORK_ITEM_UPDATE_OSD);
-    /* We never want to stop. */
+    work_item_t work = {
+        .destination = WORK_MODULE_MAIN,
+        .command = WORK_ITEM_UPDATE_OSD,
+    };
+    work_queue_try_add(work);
+    /* We never want to stop. If the work queue is full this just results in a temporarily lower
+     * framerate. */
     return REPEATING_TIMER_CONTINUE;
 }
