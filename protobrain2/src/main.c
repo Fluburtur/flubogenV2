@@ -28,7 +28,7 @@
 #include <pico/time.h>
 
 #include "adc_sensors.h"
-#include "anim.h"
+#include "animation/anim.h"
 #include "leds/led_brightness.h"
 #include "leds/leds.h"
 #include "osd.h"

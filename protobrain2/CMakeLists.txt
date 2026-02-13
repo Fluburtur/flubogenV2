@@ -43,7 +43,7 @@ pico_sdk_init()
 
 add_executable(protobrain2
 	src/adc_sensors.c
-	src/anim.c
+	src/animation/anim.c
 	src/main.c
 	src/misc.c
 	src/osd.c
