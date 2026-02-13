@@ -32,6 +32,7 @@
 #include "leds/led_brightness.h"
 #include "leds/leds.h"
 #include "osd.h"
+#include "remote/remote.h"
 #include "work_queue.h"
 
 #ifdef USE_SD_CARD
@@ -115,6 +116,7 @@ int main(void)
     leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
 
     osd_init();
+    remote_init();
 
     /* Start the boot animation. */
     hard_assert(animationInit());
@@ -139,6 +141,10 @@ int main(void)
         {
         case WORK_MODULE_MAIN:
             do_work(work);
+            break;
+
+        case WORK_MODULE_REMOTE:
+            remote_handle_work(work);
             break;
 
         default:

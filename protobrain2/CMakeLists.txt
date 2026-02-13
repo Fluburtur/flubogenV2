@@ -47,6 +47,8 @@ add_executable(protobrain2
 	src/main.c
 	src/misc.c
 	src/osd.c
+	src/remote/remote.c
+	src/remote/remote_msg.c
 	src/work_queue.c
         src/leds/led_brightness.c
 	src/leds/leds.c
