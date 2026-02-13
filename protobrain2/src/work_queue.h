@@ -12,6 +12,7 @@ typedef enum
 {
     WORK_MODULE_MAIN,
     WORK_MODULE_REMOTE,
+    WORK_MODULE_ANIMATION,
 } work_module_t;
 
 typedef uint8_t work_command_t;

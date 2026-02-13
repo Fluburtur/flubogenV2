@@ -19,9 +19,7 @@
 // I won't do the brightness equalisation now, though.
 
 #include <assert.h>
-#include <stdatomic.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #include <pico/assert.h>
 #include <pico/stdlib.h>
@@ -29,6 +27,7 @@
 
 #include "adc_sensors.h"
 #include "animation/anim.h"
+#include "animation/animation_manager.h"
 #include "leds/led_brightness.h"
 #include "leds/leds.h"
 #include "osd.h"
@@ -47,17 +46,11 @@
 #define ADC_READ_PERIOD_MS 10
 /** Update the OSD every 0.5 second */
 #define OSD_UPDATE_PERIOD_MS 500
-/** Play a random animation every 10 seconds. */
-#define RANDOM_ANIMATION_PERIOD_MS (10 * 1000)
 
 #define REPEATING_TIMER_CONTINUE true
-#define ALARM_STOP 0
-#define ALARM_RESCHEDULE_AFTER_MS(ms) (-(ms))
 
 typedef enum
 {
-    WORK_ITEM_ANIMATE_FACE_FRAME,
-    WORK_ITEM_REQUEST_RANDOM_ANIMATION,
     WORK_ITEM_READ_ADC_SENSORS,
     WORK_ITEM_UPDATE_OSD,
 } main_work_item_command_t;
@@ -67,16 +60,9 @@ static_assert(sizeof(main_work_item_command_t) <= sizeof(work_command_t), "too b
  * Variables
  ***********************/
 
-static repeating_timer_t face_animation_timer;
 static repeating_timer_t adc_read_timer;
 static repeating_timer_t osd_update_timer;
 
-/** We use this as a non-repeating timer. */
-static alarm_id_t random_animation_timer;
-static atomic_bool is_random_animation_timer_running;
-static bool want_random_animation;
-
-static uint16_t animation_period_ms;
 static ws2812b_led_value_t logo_colour;
 
 /***********************
@@ -84,10 +70,8 @@ static ws2812b_led_value_t logo_colour;
  ***********************/
 
 static void do_work(work_item_t work);
-static bool face_animation_callback(repeating_timer_t *timer);
 static bool adc_read_callback(repeating_timer_t *timer);
 static bool osd_update_callback(repeating_timer_t *timer);
-static int64_t random_animation_callback(alarm_id_t id, void *user_data);
 
 /***********************
  * Public functions
@@ -116,17 +100,13 @@ int main(void)
     leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
 
     osd_init();
+
+    /* Starts the boot animation. */
+    animation_manager_init();
+
     remote_init();
 
-    /* Start the boot animation. */
-    hard_assert(animationInit());
-    animation_period_ms = startAnimation(BOOT_ANIMATION);
-    hard_assert(animation_period_ms != 0);
-
     /* Start the timers last, so we don't accumulate lots of work during any slow parts of init. */
-    hard_assert(
-        add_repeating_timer_ms(
-            animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
     hard_assert(
         add_repeating_timer_ms(
             ADC_READ_PERIOD_MS, adc_read_callback, NULL, &adc_read_timer));
@@ -147,6 +127,10 @@ int main(void)
             remote_handle_work(work);
             break;
 
+        case WORK_MODULE_ANIMATION:
+            animation_manager_handle_work(work);
+            break;
+
         default:
             /* Unrecognised destination, something has gone wrong. */
             hard_assert(false);
@@ -164,64 +148,6 @@ static void do_work(work_item_t work)
     main_work_item_command_t command = (main_work_item_command_t)work.command;
     switch (command)
     {
-    case WORK_ITEM_ANIMATE_FACE_FRAME:
-    {
-        bool finished = updateAnimation();
-        if (finished)
-        {
-            cancel_repeating_timer(&face_animation_timer);
-
-            uint8_t next_animation = DEFAULT_ANIMATION;
-            bool starting_random = false;
-
-            if (want_random_animation)
-            {
-                starting_random = true;
-                want_random_animation = false;
-
-                switch (rand() % 4)
-                {
-                case 0:
-                    next_animation = RANDOM_ANIMATION_1;
-                    break;
-                case 1:
-                    next_animation = RANDOM_ANIMATION_2;
-                    break;
-                case 2:
-                    next_animation = RANDOM_ANIMATION_3;
-                    break;
-                default:
-                    /* Intentionally have a chance to pick the default animation. */
-                    next_animation = DEFAULT_ANIMATION;
-                    break;
-                }
-            }
-
-            animation_period_ms = startAnimation(next_animation);
-            hard_assert(
-                add_repeating_timer_ms(
-                    animation_period_ms, face_animation_callback, NULL, &face_animation_timer));
-
-            /* We start the random animation timer if it's not already running and we didn't
-             * just start a random animation. In practice this means we start the timer at the
-             * end of the boot animation, and then at the end of each random animation.
-             * We do it like this so the time between random animations is correct if any of
-             * the animations are long (which they are). */
-            if (!starting_random && !is_random_animation_timer_running)
-            {
-                random_animation_timer = add_alarm_in_ms(
-                    RANDOM_ANIMATION_PERIOD_MS, random_animation_callback, NULL, true);
-                hard_assert(random_animation_timer > 0);
-                is_random_animation_timer_running = true;
-            }
-        }
-    }
-    break;
-
-    case WORK_ITEM_REQUEST_RANDOM_ANIMATION:
-        want_random_animation = true;
-        break;
-
     case WORK_ITEM_READ_ADC_SENSORS:
     {
         bool averages_updated = adc_sensors_read();
@@ -256,39 +182,6 @@ static void do_work(work_item_t work)
         hard_assert(false);
         break;
     }
-    }
-}
-
-static bool face_animation_callback(repeating_timer_t *timer)
-{
-    (void)timer;
-    work_item_t work = {
-        .destination = WORK_MODULE_MAIN,
-        .command = WORK_ITEM_ANIMATE_FACE_FRAME,
-    };
-    work_queue_try_add(work);
-    /* Assume we want to draw more frames. If the work queue is full this just results in a
-     * temporarily lower framerate. */
-    return REPEATING_TIMER_CONTINUE;
-}
-
-static int64_t random_animation_callback(alarm_id_t id, void *user_data)
-{
-    (void)id;
-    (void)user_data;
-    work_item_t work = {
-        .destination = WORK_MODULE_MAIN,
-        .command = WORK_ITEM_REQUEST_RANDOM_ANIMATION,
-    };
-    if (work_queue_try_add(work))
-    {
-        is_random_animation_timer_running = false;
-        return ALARM_STOP;
-    }
-    else
-    {
-        /* If the work queue is full we'll try again later. */
-        return ALARM_RESCHEDULE_AFTER_MS(RANDOM_ANIMATION_PERIOD_MS);
     }
 }
 
