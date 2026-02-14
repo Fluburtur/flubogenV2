@@ -29,8 +29,10 @@ typedef enum
     /* Playing the idle animation or a random animation.
      * Random animations are allowed. Animations can be interrupted by the remote. */
     STATE_IDLE_OR_RANDOM,
-    /* Playing a specific animation requested by the remote. */
+    /* Playing a specific animation requested by the remote. Go idle when it ends. */
     STATE_REMOTE_PLAY_ONCE,
+    /* Playing a specific animation requested by the remote. Repeat when it ends. */
+    STATE_REMOTE_PLAY_REPEAT,
 } animation_state_t;
 
 /***********************
@@ -41,6 +43,7 @@ static animation_state_t state;
 
 /** Ticks at the animation framerate. Drives LED updates. */
 static repeating_timer_t face_animation_timer;
+static uint8_t repeating_animation_number;
 
 /** We use this as a non-repeating timer. */
 static alarm_id_t random_animation_timer;
@@ -54,6 +57,7 @@ static bool want_random_animation;
 static void work_booting(animation_work_item_command_t cmd, uint8_t param);
 static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param);
 static void work_remote_play_once(animation_work_item_command_t cmd, uint8_t param);
+static void work_remote_play_repeat(animation_work_item_command_t cmd, uint8_t param);
 
 static void start_frame_timer(uint16_t animation_period_ms);
 static inline void stop_frame_timer(void);
@@ -96,6 +100,10 @@ void animation_manager_handle_work(work_item_t work)
     case STATE_REMOTE_PLAY_ONCE:
         work_remote_play_once(cmd, work.data);
         break;
+
+    case STATE_REMOTE_PLAY_REPEAT:
+        work_remote_play_repeat(cmd, work.data);
+        break;
     }
 }
 
@@ -128,6 +136,8 @@ static void work_booting(animation_work_item_command_t cmd, uint8_t param)
 
     case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
+    case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
+    case ANIMATION_WORK_CMD_REMOTE_END_ANIMATION:
         /* All other requests are ignored. The boot animation is not interruptible. */
         (void)param;
         break;
@@ -200,6 +210,7 @@ static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param
     }
 
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
+    case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
     {
         /* The idle/random animation can be interrupted by an explicit request from the remote. */
         if (animationNumberIsValid(param))
@@ -211,10 +222,22 @@ static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param
             uint16_t animation_period_ms = startAnimation(param);
             start_frame_timer(animation_period_ms);
 
-            state = STATE_REMOTE_PLAY_ONCE;
+            if (cmd == ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE)
+            {
+                state = STATE_REMOTE_PLAY_ONCE;
+            }
+            else
+            {
+                repeating_animation_number = param;
+                state = STATE_REMOTE_PLAY_REPEAT;
+            }
         }
         break;
     }
+
+    case ANIMATION_WORK_CMD_REMOTE_END_ANIMATION:
+        /* Only has an effect in play-repeat mode. */
+        break;
     }
 }
 
@@ -245,6 +268,42 @@ static void work_remote_play_once(animation_work_item_command_t cmd, uint8_t par
 
     case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
+    case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
+    case ANIMATION_WORK_CMD_REMOTE_END_ANIMATION:
+        /* All other requests are ignored. The animation is not interruptible. */
+        (void)param;
+        break;
+    }
+}
+
+static void work_remote_play_repeat(animation_work_item_command_t cmd, uint8_t param)
+{
+    switch (cmd)
+    {
+    case ANIMATION_WORK_CMD_ANIMATE_FACE_FRAME:
+    {
+        bool finished = updateAnimation();
+        if (finished)
+        {
+            stop_frame_timer();
+
+            /* Repeat the same animation. */
+            uint16_t animation_period_ms = startAnimation(repeating_animation_number);
+            start_frame_timer(animation_period_ms);
+        }
+    }
+    break;
+
+    case ANIMATION_WORK_CMD_REMOTE_END_ANIMATION:
+    {
+        /* We'll go idle when this animation ends. */
+        state = STATE_REMOTE_PLAY_ONCE;
+    }
+    break;
+
+    case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
+    case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
+    case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
         /* All other requests are ignored. The animation is not interruptible. */
         (void)param;
         break;

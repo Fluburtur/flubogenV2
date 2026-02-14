@@ -215,12 +215,26 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
     }
 
     case REMOTE_WORK_CMD_RX_PLAY_ANIMATION_REPEAT:
-        /* TODO: unimplemented */
+    {
+        work_item_t work = {
+            .destination = WORK_MODULE_ANIMATION,
+            .command = ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT,
+            .data = param,
+        };
+        work_queue_try_add(work);
         break;
+    }
 
     case REMOTE_WORK_CMD_RX_END_ANIMATION:
-        /* TODO: unimplemented */
+    {
+        work_item_t work = {
+            .destination = WORK_MODULE_ANIMATION,
+            .command = ANIMATION_WORK_CMD_REMOTE_END_ANIMATION,
+            .data = param,
+        };
+        work_queue_try_add(work);
         break;
+    }
 
     case REMOTE_WORK_CMD_RX_TOGGLE_LOCK:
         /* TODO: unimplemented */
