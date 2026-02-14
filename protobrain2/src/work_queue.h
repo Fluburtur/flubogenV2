@@ -10,10 +10,19 @@
 
 typedef enum
 {
-    WORK_ITEM_ANIMATE_FACE_FRAME,
-    WORK_ITEM_REQUEST_RANDOM_ANIMATION,
-    WORK_ITEM_READ_ADC_SENSORS,
-    WORK_ITEM_UPDATE_OSD,
+    WORK_MODULE_MAIN,
+    WORK_MODULE_REMOTE,
+    WORK_MODULE_ANIMATION,
+} work_module_t;
+
+typedef uint8_t work_command_t;
+typedef uint8_t work_data_t;
+
+typedef struct
+{
+    work_module_t destination;
+    work_command_t command;
+    work_data_t data;
 } work_item_t;
 
 /**
@@ -24,11 +33,23 @@ void work_queue_init(void);
 /**
  * Add a work item.
  *
+ * The item is treated as critical -- if there's no space in the work queue then we assert.
  * Safe to call from interrupt handlers.
  *
  * @param[in] item Work item
  */
 void work_queue_add(work_item_t item);
+
+/**
+ * Try to add a work item.
+ *
+ * If there's no space in the work queue then the work item is thrown away.
+ * Safe to call from interrupt handlers.
+ *
+ * @param[in] item Work item
+ * @return true if the item was added to the queue
+ */
+bool work_queue_try_add(work_item_t item);
 
 /**
  * Remove a work item.

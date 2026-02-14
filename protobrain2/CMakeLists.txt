@@ -8,6 +8,12 @@ option(
 	ON
 )
 
+option(
+	REMOTE_UART
+	"When ON, the remote control UART is used. When OFF (intended for debugging), the UART is ignored and stdio is used instead."
+	ON
+)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -43,10 +49,12 @@ pico_sdk_init()
 
 add_executable(protobrain2
 	src/adc_sensors.c
-	src/anim.c
+	src/animation/anim.c
+	src/animation/animation_manager.c
 	src/main.c
 	src/misc.c
 	src/osd.c
+	src/remote/remote.c
 	src/work_queue.c
         src/leds/led_brightness.c
 	src/leds/leds.c
@@ -63,6 +71,12 @@ else()
 	target_include_directories(protobrain2 PRIVATE src/fake_fs)
 endif()
 
+if(REMOTE_UART)
+	target_sources(protobrain2 PRIVATE src/remote/remote_msg_uart.c)
+else()
+	target_sources(protobrain2 PRIVATE src/remote/remote_msg_stdio.c)
+endif()
+
 
 pico_set_program_name(protobrain2 "protobrain2")
 pico_set_program_version(protobrain2 "0.1")
@@ -71,6 +85,7 @@ pico_set_program_version(protobrain2 "0.1")
 pico_generate_pio_header(protobrain2 ${CMAKE_CURRENT_LIST_DIR}/src/leds/ws2812b.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
+# stdio_usb should be enabled if REMOTE_UART == OFF.
 pico_enable_stdio_uart(protobrain2 0)
 pico_enable_stdio_usb(protobrain2 1)
 
