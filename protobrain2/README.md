@@ -10,9 +10,3 @@ I did this on Linux. If the project settings are bad for Windows, I'm sorry!
 * The LED channels have min|max brightness limits (out of 255).
     * Face: 10|100 (max limit for power reasons)
     * Others: 30|255
-
-# TODOs
-
-"port the software"
-
-* hook the LEDs up to the automatic brightness control
