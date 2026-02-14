@@ -179,11 +179,9 @@ static void do_work(work_item_t work)
     break;
 
     default:
-    {
         /* Unrecognised work, something has gone wrong. */
         hard_assert(false);
         break;
-    }
     }
 }
 

@@ -219,8 +219,8 @@ static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param
     case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
     {
         want_random_animation = true;
-        break;
     }
+    break;
 
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
@@ -245,8 +245,8 @@ static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param
                 state = STATE_REMOTE_PLAY_REPEAT;
             }
         }
-        break;
     }
+    break;
 
     case ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK:
     {
@@ -373,9 +373,11 @@ static void work_locked_idle(animation_work_item_command_t cmd, uint8_t param)
     break;
 
     case ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK:
+    {
         /* "If the brain is locked then it unlocks." */
         state = STATE_IDLE_OR_RANDOM;
-        break;
+    }
+    break;
 
     case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:

@@ -121,8 +121,8 @@ static void work_unconnected(remote_work_item_command_t cmd, uint8_t param)
          * message. If this does not happen... the brain should send a "reset" command to the
          * remote every 10 seconds" */
         remote_msg_send_reset();
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_HELLO:
     {
@@ -139,8 +139,8 @@ static void work_unconnected(remote_work_item_command_t cmd, uint8_t param)
              * send a reply.
              * TODO: handle an unsupported remote protocol instead of just ignoring it? */
         }
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_INVALID:
     case REMOTE_WORK_CMD_RX_PLAY_ANIMATION_ONCE:
@@ -153,8 +153,8 @@ static void work_unconnected(remote_work_item_command_t cmd, uint8_t param)
         cancel_connect_timeout();
         start_connect_timeout();
         remote_msg_send_reset();
-        break;
     }
+    break;
     }
 }
 
@@ -166,8 +166,8 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
     {
         /* Unlikely race condition. Cancel the conection timeout and stay connected. */
         cancel_connect_timeout();
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_HELLO:
     {
@@ -190,8 +190,8 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
             start_connect_timeout();
             remote_msg_send_reset();
         }
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_INVALID:
     {
@@ -200,8 +200,8 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
         state = STATE_UNCONNECTED;
         start_connect_timeout();
         remote_msg_send_reset();
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_PLAY_ANIMATION_ONCE:
     {
@@ -211,8 +211,8 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
             .data = param,
         };
         work_queue_try_add(work);
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_PLAY_ANIMATION_REPEAT:
     {
@@ -222,8 +222,8 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
             .data = param,
         };
         work_queue_try_add(work);
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_END_ANIMATION:
     {
@@ -233,15 +233,17 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
             .data = param,
         };
         work_queue_try_add(work);
-        break;
     }
+    break;
 
     case REMOTE_WORK_CMD_RX_TOGGLE_LOCK:
+    {
         work_item_t work = {
             .destination = WORK_MODULE_ANIMATION,
             .command = ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK,
         };
         work_queue_try_add(work);
-        break;
+    }
+    break;
     }
 }

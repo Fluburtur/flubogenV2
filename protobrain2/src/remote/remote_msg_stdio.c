@@ -102,8 +102,8 @@ static void chars_available_irq_handler(void *param)
             work_item.command = REMOTE_WORK_CMD_RX_HELLO;
             work_item.data = protocol_version;
             valid = true;
-            break;
         }
+        break;
 
         case COMMAND_PLAY_ANIMATION_ONCE:
         {
@@ -114,8 +114,8 @@ static void chars_available_irq_handler(void *param)
             work_item.command = REMOTE_WORK_CMD_RX_PLAY_ANIMATION_ONCE;
             work_item.data = animation_number;
             valid = true;
-            break;
         }
+        break;
 
         case COMMAND_PLAY_ANIMATION_REPEAT:
         {
@@ -126,31 +126,33 @@ static void chars_available_irq_handler(void *param)
             work_item.command = REMOTE_WORK_CMD_RX_PLAY_ANIMATION_REPEAT;
             work_item.data = animation_number;
             valid = true;
-            break;
         }
+        break;
 
         case COMMAND_END_ANIMATION:
         {
             work_item.destination = WORK_MODULE_REMOTE;
             work_item.command = REMOTE_WORK_CMD_RX_END_ANIMATION;
             valid = true;
-            break;
         }
+        break;
 
         case COMMAND_TOGGLE_LOCK:
         {
             work_item.destination = WORK_MODULE_REMOTE;
             work_item.command = REMOTE_WORK_CMD_RX_TOGGLE_LOCK;
             valid = true;
-            break;
         }
+        break;
 
         default:
+        {
             /* An unknown/invalid command. */
             work_item.destination = WORK_MODULE_REMOTE;
             work_item.command = REMOTE_WORK_CMD_RX_INVALID;
             work_item.data = cmd;
-            break;
+        }
+        break;
         }
 
         if (valid)
