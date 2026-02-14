@@ -356,3 +356,8 @@ const char *animation_get_current_name(void)
 	snprintf(cmd_name, 22, "COMMAND ANIMATION %" PRIu8, current_num - 5);
 	return cmd_name;
 }
+
+bool animationNumberIsValid(uint8_t animationNumber) {
+	if (animationNumber == NO_ANIMATION) return false;
+	return animationNumber <= animationCount;
+}

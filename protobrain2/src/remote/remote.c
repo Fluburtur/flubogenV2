@@ -4,6 +4,7 @@
 #include <pico/assert.h>
 #include <pico/time.h>
 
+#include "animation/animation_work.h"
 #include "remote.h"
 #include "remote_msg.h"
 #include "remote_work.h"
@@ -203,8 +204,15 @@ static void work_connected(remote_work_item_command_t cmd, uint8_t param)
     }
 
     case REMOTE_WORK_CMD_RX_PLAY_ANIMATION_ONCE:
-        /* TODO: unimplemented */
+    {
+        work_item_t work = {
+            .destination = WORK_MODULE_ANIMATION,
+            .command = ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE,
+            .data = param,
+        };
+        work_queue_try_add(work);
         break;
+    }
 
     case REMOTE_WORK_CMD_RX_PLAY_ANIMATION_REPEAT:
         /* TODO: unimplemented */

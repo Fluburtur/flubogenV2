@@ -72,5 +72,6 @@ uint16_t startAnimation(uint8_t animationNumber);
 bool updateAnimation();
 void animationSetLocked(bool locked);
 const char *animation_get_current_name(void);
+bool animationNumberIsValid(uint8_t animationNumber);
 
 #endif /* _ANIM_H_ */
