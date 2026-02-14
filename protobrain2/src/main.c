@@ -30,6 +30,7 @@
 #include "animation/animation_manager.h"
 #include "leds/led_brightness.h"
 #include "leds/leds.h"
+#include "main_work.h"
 #include "osd.h"
 #include "remote/remote.h"
 #include "work_queue.h"
@@ -48,13 +49,6 @@
 #define OSD_UPDATE_PERIOD_MS 500
 
 #define REPEATING_TIMER_CONTINUE true
-
-typedef enum
-{
-    WORK_ITEM_READ_ADC_SENSORS,
-    WORK_ITEM_UPDATE_OSD,
-} main_work_item_command_t;
-static_assert(sizeof(main_work_item_command_t) <= sizeof(work_command_t), "too big");
 
 /***********************
  * Variables
@@ -148,7 +142,7 @@ static void do_work(work_item_t work)
     main_work_item_command_t command = (main_work_item_command_t)work.command;
     switch (command)
     {
-    case WORK_ITEM_READ_ADC_SENSORS:
+    case MAIN_WORK_CMD_READ_ADC_SENSORS:
     {
         bool averages_updated = adc_sensors_read();
         if (averages_updated)
@@ -164,7 +158,7 @@ static void do_work(work_item_t work)
     }
     break;
 
-    case WORK_ITEM_UPDATE_OSD:
+    case MAIN_WORK_CMD_UPDATE_OSD:
     {
         uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
         const uint8_t fake_remote_data[] = {0, 0};
@@ -190,7 +184,7 @@ static bool adc_read_callback(repeating_timer_t *timer)
     (void)timer;
     work_item_t work = {
         .destination = WORK_MODULE_MAIN,
-        .command = WORK_ITEM_READ_ADC_SENSORS,
+        .command = MAIN_WORK_CMD_READ_ADC_SENSORS,
     };
     work_queue_try_add(work);
     /* We never want to stop. If the work queue is full this just results in temporarily slower
@@ -203,7 +197,7 @@ static bool osd_update_callback(repeating_timer_t *timer)
     (void)timer;
     work_item_t work = {
         .destination = WORK_MODULE_MAIN,
-        .command = WORK_ITEM_UPDATE_OSD,
+        .command = MAIN_WORK_CMD_UPDATE_OSD,
     };
     work_queue_try_add(work);
     /* We never want to stop. If the work queue is full this just results in a temporarily lower
