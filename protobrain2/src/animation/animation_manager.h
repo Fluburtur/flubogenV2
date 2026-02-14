@@ -17,4 +17,11 @@ void animation_manager_init(void);
  */
 void animation_manager_handle_work(work_item_t work);
 
+/**
+ * Are we in the locked state?
+ *
+ * @return locked
+ */
+bool animation_manager_is_locked(void);
+
 #endif /* _ANIMATION_MANAGER_H_ */

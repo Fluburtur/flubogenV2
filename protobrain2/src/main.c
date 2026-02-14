@@ -147,10 +147,18 @@ static void do_work(work_item_t work)
         bool averages_updated = adc_sensors_read();
         if (averages_updated)
         {
-            led_brightness_update(adc_sensors_get_averages().brightness);
+            /* "In the locked state the LED brightness does not change" */
+            if (!animation_manager_is_locked())
+            {
+                led_brightness_update(adc_sensors_get_averages().brightness);
 
-            /* Logo auto-brightness adjustment. Still a fixed colour. */
-            logo_colour.b = led_brightness_get_logo_value();
+                /* Logo auto-brightness adjustment. Still a fixed colour. */
+                logo_colour.b = led_brightness_get_logo_value();
+            }
+
+            /* Even when we're locked we still write to the logos, re-applying the same unchanged
+             * value. This is for reliability; if a glitch/noise causes the LEDs to receive a bad
+             * value, it will soon be replaced by a (hopefully) good value. */
             leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
             leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
             leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);

@@ -33,6 +33,8 @@ typedef enum
     STATE_REMOTE_PLAY_ONCE,
     /* Playing a specific animation requested by the remote. Repeat when it ends. */
     STATE_REMOTE_PLAY_REPEAT,
+    /* Playing the idle animation only. Other animation commands are ignored. */
+    STATE_LOCKED_IDLE,
 } animation_state_t;
 
 /***********************
@@ -58,6 +60,7 @@ static void work_booting(animation_work_item_command_t cmd, uint8_t param);
 static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param);
 static void work_remote_play_once(animation_work_item_command_t cmd, uint8_t param);
 static void work_remote_play_repeat(animation_work_item_command_t cmd, uint8_t param);
+static void work_locked_idle(animation_work_item_command_t cmd, uint8_t param);
 
 static void start_frame_timer(uint16_t animation_period_ms);
 static inline void stop_frame_timer(void);
@@ -104,7 +107,16 @@ void animation_manager_handle_work(work_item_t work)
     case STATE_REMOTE_PLAY_REPEAT:
         work_remote_play_repeat(cmd, work.data);
         break;
+
+    case STATE_LOCKED_IDLE:
+        work_locked_idle(cmd, work.data);
+        break;
     }
+}
+
+bool animation_manager_is_locked(void)
+{
+    return state == STATE_LOCKED_IDLE;
 }
 
 /***********************
@@ -138,6 +150,7 @@ static void work_booting(animation_work_item_command_t cmd, uint8_t param)
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
     case ANIMATION_WORK_CMD_REMOTE_END_ANIMATION:
+    case ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK:
         /* All other requests are ignored. The boot animation is not interruptible. */
         (void)param;
         break;
@@ -235,6 +248,27 @@ static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param
         break;
     }
 
+    case ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK:
+    {
+        /* "If the brain is unlocked and playing a random animation then it stops the random
+         * animation and enters the locked state.
+         * If the brain is unlocked and idle then it enters the locked state."
+         *
+         * We can deal with both of these by always stopping the current animation then starting
+         * the idle animation. If we were already playing the idle animation it doesn't really
+         * matter. */
+
+        stop_random_animation_timer();
+        want_random_animation = false;
+
+        stop_frame_timer();
+        uint16_t animation_period_ms = startAnimation(DEFAULT_ANIMATION);
+        start_frame_timer(animation_period_ms);
+
+        state = STATE_LOCKED_IDLE;
+    }
+    break;
+
     case ANIMATION_WORK_CMD_REMOTE_END_ANIMATION:
         /* Only has an effect in play-repeat mode. */
         break;
@@ -265,6 +299,11 @@ static void work_remote_play_once(animation_work_item_command_t cmd, uint8_t par
         }
     }
     break;
+
+    case ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK:
+        /* "If the brain is unlocked but an animation is still playing from a previous command then
+         * the toggle command is ignored." */
+        break;
 
     case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
@@ -301,10 +340,48 @@ static void work_remote_play_repeat(animation_work_item_command_t cmd, uint8_t p
     }
     break;
 
+    case ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK:
+        /* "If the brain is unlocked but an animation is still playing from a previous command then
+         * the toggle command is ignored." */
+        break;
+
     case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
     case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
         /* All other requests are ignored. The animation is not interruptible. */
+        (void)param;
+        break;
+    }
+}
+
+static void work_locked_idle(animation_work_item_command_t cmd, uint8_t param)
+{
+    switch (cmd)
+    {
+    case ANIMATION_WORK_CMD_ANIMATE_FACE_FRAME:
+    {
+        bool finished = updateAnimation();
+        if (finished)
+        {
+            stop_frame_timer();
+
+            /* Repeat the idle animation. */
+            uint16_t animation_period_ms = startAnimation(DEFAULT_ANIMATION);
+            start_frame_timer(animation_period_ms);
+        }
+    }
+    break;
+
+    case ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK:
+        /* "If the brain is locked then it unlocks." */
+        state = STATE_IDLE_OR_RANDOM;
+        break;
+
+    case ANIMATION_WORK_CMD_REQUEST_RANDOM_ANIMATION:
+    case ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE:
+    case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
+    case ANIMATION_WORK_CMD_REMOTE_END_ANIMATION:
+        /* All other requests are ignored. */
         (void)param;
         break;
     }

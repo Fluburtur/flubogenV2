@@ -12,6 +12,7 @@ typedef enum
     ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE,
     ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT,
     ANIMATION_WORK_CMD_REMOTE_END_ANIMATION,
+    ANIMATION_WORK_CMD_REMOTE_TOGGLE_LOCK,
 } animation_work_item_command_t;
 
 static_assert(sizeof(animation_work_item_command_t) <= sizeof(work_command_t), "too big");
