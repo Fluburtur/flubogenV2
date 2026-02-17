@@ -226,13 +226,25 @@ static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param
     case ANIMATION_WORK_CMD_REMOTE_PLAY_REPEAT:
     {
         /* The idle/random animation can be interrupted by an explicit request from the remote. */
-        if (animationNumberIsValid(param))
+
+        /* The remote should send command animation numbers 1-250 (but beware it could send an
+         * invalid value).
+         * These have to map to "real" animation numbers, where command animation 1 is actually
+         * number 6 (first after the boot animation). */
+        uint8_t command_animation_num = param;
+        if ((command_animation_num == 0) || (command_animation_num > 250))
+        {
+            return;
+        }
+        uint8_t real_animation_num = BOOT_ANIMATION + command_animation_num;
+
+        if (animationNumberIsValid(real_animation_num))
         {
             stop_random_animation_timer();
             want_random_animation = false;
 
             stop_frame_timer();
-            uint16_t animation_period_ms = startAnimation(param);
+            uint16_t animation_period_ms = startAnimation(real_animation_num);
             start_frame_timer(animation_period_ms);
 
             if (cmd == ANIMATION_WORK_CMD_REMOTE_PLAY_ONCE)
@@ -241,7 +253,7 @@ static void work_idle_or_random(animation_work_item_command_t cmd, uint8_t param
             }
             else
             {
-                repeating_animation_number = param;
+                repeating_animation_number = real_animation_num;
                 state = STATE_REMOTE_PLAY_REPEAT;
             }
         }

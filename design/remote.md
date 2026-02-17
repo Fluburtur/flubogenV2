@@ -89,7 +89,7 @@ The remote begins normal operation.
 Direction: remote to brain  
 Response: none
 
-Causes the brain to play the chosen animation one time.
+Causes the brain to play the chosen command animation one time.
 After playback completes, the brain returns to the idle animation.
 
 If no such animation exists then the command is ignored.
@@ -97,21 +97,21 @@ If an animation is still playing from a previous command then the command is ign
 
 | Command byte | Animation Number (1 byte) |
 | ------------ | ------------------------- |
-| 0x01         | 1-255                     |
+| 0x01         | 1-250                     |
 
 ### Play Animation Repeat
 
 Direction: remote to brain  
 Response: none
 
-Causes the brain to play the chosen animation on repeat. Use "end animation" to stop this.
+Causes the brain to play the chosen command animation on repeat. Use "end animation" to stop this.
 
 If no such animation exists then the command is ignored.
 If a different animation is still playing from a previous command then the command is ignored.
 
 | Command byte | Animation Number (1 byte) |
 | ------------ | ------------------------- |
-| 0x02         | 1-255                     |
+| 0x02         | 1-250                     |
 
 ### End Animation
 
