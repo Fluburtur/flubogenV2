@@ -62,7 +62,7 @@ void remote_msg_init(void)
     irq_set_enabled(UART_IRQ_NUM(REMOTE_UART_INSTANCE), true);
     // uart_set_irqs_enabled(REMOTE_UART_INSTANCE, true, false);
     /* Enable the read timeout interrupt only. */
-    uart_get_hw(REMOTE_UART_INSTANCE)->imsc = UART_UARTIMSC_RTIM_LSB;
+    uart_get_hw(REMOTE_UART_INSTANCE)->imsc = 1 << UART_UARTIMSC_RTIM_LSB;
 }
 
 void remote_msg_send_reset(void)
