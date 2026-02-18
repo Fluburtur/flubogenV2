@@ -3,6 +3,15 @@ Raspberry Pi debug probe.
 
 I did this on Linux. If the project settings are bad for Windows, I'm sorry!
 
+# Setup and Building
+
+1. Install the "Raspberry Pi Pico" extension in Visual Studio Code.
+1. Drag the `protobrain2` directory into a fresh instance of Visual Studio Code.
+1. Raspberry Pi Pico extension --> Compile Project.
+
+When changing the content of `CMakeLists.txt` you should go Raspberry Pi Pico extension --> Clean
+CMake, otherwise the changes may not be recognised when you build.
+
 # Misc Notes
 
 * max7456 is the OSD I think -- text overlay for the video screen inside the head
