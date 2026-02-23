@@ -1,7 +1,0 @@
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool/picotool
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool/picotoolTargets.cmake
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool/picotoolTargets-release.cmake
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool/picotoolConfig.cmake
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool/picotoolConfigVersion.cmake
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool/enc_bootloader.elf
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool/enc_bootloader_mbedtls.elf

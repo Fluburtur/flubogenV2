@@ -1,0 +1,36 @@
+;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+; This program drives one or more WS2812B LEDs.
+; We use one side set pin to drive the data line. See the Pico SDK section 3.2.2 for a full
+; explanation.
+
+.pio_version 0 // only requires PIO version 0
+
+.program ws2812b
+.side_set 1
+
+; WS2812B timing
+; In the datasheet this is split into a high and low duration.
+;   For 0 bit: 400H 850L
+;   For 1 bit: 800H 450L
+; In this implementation we split this into 3 durations. A high part, a bit-dependent part, and a
+; low part. These are T1 through T3 respectively.
+;   Common: 400H 400? 450L
+; If we take 50 ns as our base unit then the ratios for T1 to T3 are:
+.define public T1 8
+.define public T2 8
+.define public T3 9
+
+
+.wrap_target
+bitloop:
+    out x, 1       side 0 [T3 - 1] ; Side-set still takes place when instruction stalls
+    jmp !x do_zero side 1 [T1 - 1] ; Branch on the bit we shifted out. Positive pulse
+do_one:
+    jmp  bitloop   side 1 [T2 - 1] ; Continue driving high, for a long pulse
+do_zero:
+    nop            side 0 [T2 - 1] ; Or drive low, for a short pulse
+.wrap

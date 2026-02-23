@@ -1,2 +1,0 @@
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool-build/enc_bootloader/CMakeFiles/edit_cache.dir
-/home/flyingthings/flur/flubogenV2-main/flubogenV2-main/FlubogenV2-main/FlubogenV2-main/protobrain2/build/_deps/picotool-build/enc_bootloader/CMakeFiles/rebuild_cache.dir

@@ -2,6 +2,18 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+option(
+	SD_card
+	"When ON, animations are read from the SD card. When OFF, animations are baked into the firmware."
+	ON
+)
+
+option(
+	REMOTE_UART
+	"When ON, the remote control UART is used. When OFF (intended for debugging), the UART is ignored and stdio is used instead."
+	ON
+)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -36,38 +48,59 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(protobrain2
-	main.c
-	anim.c
-	leds.c
-	osd.c
-	misc.c
-	sd_config.c
-	gpio.c)
+	src/adc_sensors.c
+	src/animation/anim.c
+	src/animation/animation_manager.c
+	src/main.c
+	src/misc.c
+	src/osd.c
+	src/remote/remote.c
+	src/work_queue.c
+        src/leds/led_brightness.c
+	src/leds/leds.c
+	src/leds/ws2812b.c
+)
 
-add_subdirectory(lib/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico/src build)
+if(SD_card)
+	add_subdirectory(lib/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico/src build)
+	target_link_libraries(protobrain2 PRIVATE no-OS-FatFS-SD-SDIO-SPI-RPi-Pico)
+	target_compile_definitions(protobrain2 PRIVATE USE_SD_CARD)
+	target_sources(protobrain2 PRIVATE src/sd_config.c)
+else()
+	target_sources(protobrain2 PRIVATE src/fake_fs/fake_fs.c)
+	target_include_directories(protobrain2 PRIVATE src/fake_fs)
+endif()
+
+if(REMOTE_UART)
+	target_sources(protobrain2 PRIVATE src/remote/remote_msg_uart.c)
+else()
+	target_sources(protobrain2 PRIVATE src/remote/remote_msg_stdio.c)
+endif()
+
 
 pico_set_program_name(protobrain2 "protobrain2")
 pico_set_program_version(protobrain2 "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(protobrain2 ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
+pico_generate_pio_header(protobrain2 ${CMAKE_CURRENT_LIST_DIR}/src/leds/ws2812b.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
+# stdio_usb should be enabled if REMOTE_UART == OFF.
 pico_enable_stdio_uart(protobrain2 0)
 pico_enable_stdio_usb(protobrain2 1)
 
 # Add the standard library to the build
-target_link_libraries(protobrain2
+target_link_libraries(protobrain2 PRIVATE
         pico_stdlib
         pico_unique_id)
 
 # Add the standard include files to the build
 target_include_directories(protobrain2 PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
 # Add any user requested libraries
-target_link_libraries(protobrain2
+target_link_libraries(protobrain2 PRIVATE
 	hardware_clocks
 	hardware_dma
 	hardware_flash
@@ -81,10 +114,15 @@ target_link_libraries(protobrain2
 	hardware_uart
 	hardware_xosc
     pico_stdlib
-    no-OS-FatFS-SD-SDIO-SPI-RPi-Pico
-        )
+)
 
 add_compile_definitions(PICO_CLOCK_AJDUST_PERI_CLOCK_WITH_SYS_CLOCK=1)
+
+target_compile_options(protobrain2 PRIVATE
+	$<$<COMPILE_LANGUAGE:C>:-Werror>
+	$<$<COMPILE_LANGUAGE:C>:-Wall>
+	$<$<COMPILE_LANGUAGE:C>:-Wextra>
+)
 
 pico_add_extra_outputs(protobrain2)
 
