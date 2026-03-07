@@ -2,7 +2,7 @@
 
 Software TODOs: https://docs.google.com/document/d/1hdh_-02SrZs_V_7GrktBjlJhYZVeI7TntKFbdAt2yxw/edit?tab=t.0
 
-RP2040-based börd by @MyloWhylo
+RP2040-based bÃ¶rd by @MyloWhylo
  * 4 WS2812 outputs
  * Serial RX/TX for remote
  * IR RX/TX
@@ -80,3 +80,9 @@ Improvements:
    * Animation frames
      * u8: post-delay in 10ms steps (0:10ms, 255:2.56s)
      * m colors: 24-bit colors (raw), or one or more colors per byte (1-bit color: 8/byte, 2-bit color: 4 /byte, 3- and 4-bit color: 2/byte...)
+
+ # Contributors
+Groowy
+Furrtek
+FlyingThings
+Happybara
