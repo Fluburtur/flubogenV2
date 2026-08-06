@@ -6,6 +6,7 @@
 
 #include "adc_sensors.h"
 #include "misc.h"
+#include "ws2812b.h"
 
 /** The hardware can be driven up to 255, but we limit to 150 due to power supply limitations. */
 #define MAX_BRIGHTNESS_FACE 150
@@ -97,9 +98,18 @@ const uint8_t *led_brightness_get_face_map(void)
     return brightness_map_face;
 }
 
-uint8_t led_brightness_get_logo_value(void)
+ws2812b_led_value_t led_brightness_get_logo_colour(ws2812b_led_value_t base_colour)
 {
-    return brightness_limit_logo;
+    /* `base_colour` is the user's chosen logo colour before brightness limiting.
+     * `brightness_limit_logo` is the current brightness limit.
+     * `fraction` is the fraction of the current brightness limit out of the maximum possible
+     * brightness, with values from 0 to 1. */
+    float fraction = brightness_limit_logo / (float)MAX_BRIGHTNESS_LOGO;
+    return (ws2812b_led_value_t){
+        .r = base_colour.r * fraction,
+        .g = base_colour.g * fraction,
+        .b = base_colour.b * fraction
+    };
 }
 
 /**

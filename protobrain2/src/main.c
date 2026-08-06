@@ -19,7 +19,9 @@
 // I won't do the brightness equalisation now, though.
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <pico/assert.h>
 #include <pico/stdlib.h>
@@ -28,6 +30,7 @@
 #include "adc_sensors.h"
 #include "animation/anim.h"
 #include "animation/animation_manager.h"
+#include "ff.h"
 #include "leds/led_brightness.h"
 #include "leds/leds.h"
 #include "main_work.h"
@@ -57,6 +60,9 @@
 static repeating_timer_t adc_read_timer;
 static repeating_timer_t osd_update_timer;
 
+/** The logo colour chosen by the user, before any brightness adjustment. */
+static ws2812b_led_value_t logo_base_colour;
+/** The logo colour we'll use, after brightness adjustment. */
 static ws2812b_led_value_t logo_colour;
 
 /***********************
@@ -66,6 +72,7 @@ static ws2812b_led_value_t logo_colour;
 static void do_work(work_item_t work);
 static bool adc_read_callback(repeating_timer_t *timer);
 static bool osd_update_callback(repeating_timer_t *timer);
+static ws2812b_led_value_t load_logo_colour(void);
 
 /***********************
  * Public functions
@@ -87,8 +94,8 @@ int main(void)
     leds_init();
     sleep_ms(1);
 
-    /* For now, just set the cheek and body logos to a fixed colour. */
-    logo_colour = (ws2812b_led_value_t){.r = 0, .g = 0, .b = led_brightness_get_logo_value()};
+    logo_base_colour = load_logo_colour();
+    logo_colour = led_brightness_get_logo_colour(logo_base_colour);
     leds_set_channel_to_colour(LED_CHANNEL_CHEEK, logo_colour, false);
     leds_set_channel_to_colour(LED_CHANNEL_BODY0, logo_colour, false);
     leds_set_channel_to_colour(LED_CHANNEL_BODY1, logo_colour, false);
@@ -152,8 +159,8 @@ static void do_work(work_item_t work)
             {
                 led_brightness_update(adc_sensors_get_averages().brightness);
 
-                /* Logo auto-brightness adjustment. Still a fixed colour. */
-                logo_colour.b = led_brightness_get_logo_value();
+                /* Logo auto-brightness adjustment. */
+                logo_colour = led_brightness_get_logo_colour(logo_base_colour);
             }
 
             /* Even when we're locked we still write to the logos, re-applying the same unchanged
@@ -209,4 +216,46 @@ static bool osd_update_callback(repeating_timer_t *timer)
     /* We never want to stop. If the work queue is full this just results in a temporarily lower
      * framerate. */
     return REPEATING_TIMER_CONTINUE;
+}
+
+/**
+ * Read the cheek and body logo colour from the SD card (or use a default colour if the SD card
+ * is disabled at compile time).
+ */
+static ws2812b_led_value_t load_logo_colour(void)
+{
+    /* Default to red for "error" */
+    static const ws2812b_led_value_t default_red_colour = (ws2812b_led_value_t){.r = 255, .g = 0, .b = 0};
+
+#ifdef USE_SD_CARD
+    FIL handle;
+    FRESULT result = f_open(&handle, "logo.txt", FA_READ);
+    if (result != FR_OK)
+    {
+        return default_red_colour;
+    }
+
+    /* Read up to 8 bytes. This supports hex values formatted like `rr gg bb` or `rrggbb` */
+    #define MAX_BYTES_TO_READ 8
+    char buf[MAX_BYTES_TO_READ + 1] = {0};
+    UINT n_bytes_got;
+    result = f_read(&handle, buf, MAX_BYTES_TO_READ, &n_bytes_got);
+    if (result != FR_OK)
+    {
+        return default_red_colour;
+    }
+
+    /* By limiting the format to 2 characters of unsigned hex, we don't need to check the value
+     * ranges manually. sscanf() will automatically clamp it to 0-255. */
+    const char* format = "%2" SCNx8 "%2" SCNx8 "%2" SCNx8;
+    uint8_t r, g, b;
+    int parse_result = sscanf(buf, format, &r, &g, &b);
+    if ((parse_result == EOF) || (parse_result != 3))
+    {
+        return default_red_colour;
+    }
+    return (ws2812b_led_value_t){.r = r, .g = g, .b = b};
+#else
+    return default_red_colour;
+#endif
 }

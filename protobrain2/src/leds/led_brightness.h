@@ -14,6 +14,8 @@
 
 #include <stdint.h>
 
+#include "ws2812b.h"
+
 /**
  * Initialise the LED brightness module.
  *
@@ -38,10 +40,14 @@ void led_brightness_update(uint16_t adc_brightness);
 const uint8_t *led_brightness_get_face_map(void);
 
 /**
- * Get the brightness limit for the logos.
+ * Apply brightness limits to a base logo colour.
  *
- * Assumes the logos are set to a single colour.
+ * E.g. if the base colour is 200,0,0 and the brightness is limited to 50%, the
+ * result will be 100,0,0
+ *
+ * @param[in] base_colour The user's chosen logo colour before brightness limiting.
+ * @return The colour adjusted for brightness.
  */
-uint8_t led_brightness_get_logo_value(void);
+ws2812b_led_value_t led_brightness_get_logo_colour(ws2812b_led_value_t base_colour);
 
 #endif /* _LED_BRIGHTNESS_H_ */
